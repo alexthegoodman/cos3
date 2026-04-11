@@ -91,9 +91,15 @@ fn sdRoundedRect(p: vec2f, halfSize: vec2f, r: f32) -> f32 {
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4f {
-  let mode   = in.params.z;
-  let radius = in.params.x;
-  let bw     = in.params.y;
+  // Always sample at level 0 and compute derivatives in uniform control flow
+  // to avoid issues with non-uniform control flow inside branches/after discards.
+  let atlasSample = textureSampleLevel(sdfAtlas, sdfSampler, in.uv, 0.0);
+  let msd         = max(min(atlasSample.r, atlasSample.g), min(max(atlasSample.r, atlasSample.g), atlasSample.b));
+  let pw          = length(vec2f(dpdx(msd), dpdy(msd))) * 0.7071;
+
+  let mode    = in.params.z;
+  let radius  = in.params.x;
+  let bw      = in.params.y;
   let opacity = in.params.w;
 
   // Clip rectangle discard
@@ -127,24 +133,15 @@ fn fs_main(in: VsOut) -> @location(0) vec4f {
 
   // ── Mode 1: SDF glyph from atlas ─────────────────────────────────────────
   if (mode < 1.5) {
-    let sample  = textureSample(sdfAtlas, sdfSampler, in.uv);
     // Multi-channel SDF median
-    let msd     = max(min(sample.r, sample.g), min(max(sample.r, sample.g), sample.b));
     let sigDist = msd - 0.5;
-    // Pixel-width derivative for AA
-    let pw      = length(vec2f(dpdx(msd), dpdy(msd))) * 0.7071;
     let alpha   = clamp(sigDist / max(pw, 0.0001) + 0.5, 0.0, 1.0);
     if (alpha < 0.001) { discard; }
     return vec4f(in.color.rgb * in.color.a, in.color.a) * alpha * opacity;
   }
 
   // ── Mode 2: Texture window (sampled from window texture slot) ─────────────
-  // NOTE: window textures use a separate bind group (group 2) set per-window.
-  // Here the atlas UV is repurposed as the full [0..1] window UV.
-  // The actual sampling is done through a texture view provided at draw time.
-  // We just return a tinted solid here; the compositor pass handles compositing.
-  let sample = textureSample(sdfAtlas, sdfSampler, in.uv);
-  return sample * opacity;
+  return atlasSample * opacity;
 }
 `;
 
@@ -207,7 +204,7 @@ fn sdRR(p: vec2f, hs: vec2f, r: f32) -> f32 {
   let dist    = sdRR(in.pxPos - center, in.qsize * 0.5, radius);
   let alpha   = (1.0 - smoothstep(-0.5, 0.5, dist)) * opacity;
   if (alpha < 0.001) { discard; }
-  let s = textureSample(tex, smp, in.uv);
+  let s = textureSampleLevel(tex, smp, in.uv, 0.0);
   return s * alpha;
 }
 `;
