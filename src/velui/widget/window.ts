@@ -175,6 +175,10 @@ export function windowBegin(
     h: Math.max(0, displayRect.h - theme.titleBarHeight - 1),
   };
 
+  if (visible) {
+    p.pushClip(displayRect);
+  }
+
   // If a texture is provided, blit it into the content area
   if (visible && cfg.contentTexture && contentRect.h > 4) {
     p.blitTexture(contentRect, cfg.contentTexture, {
@@ -192,7 +196,11 @@ export function windowBegin(
 }
 
 /** No-op end marker — reserved for future post-processing hooks. */
-export function windowEnd(_result: WindowResult): void {}
+export function windowEnd(result: WindowResult, p: Painter): void {
+  if (result.visible) {
+    p.popClip();
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimised window bar

@@ -289,7 +289,7 @@ export default async function main() {
               theme.textDim, theme.fontSizeSmall);
       }
 
-      windowEnd(ctrlWin);
+      windowEnd(ctrlWin, p);
     }
 
     // ── 3D Scene window ───────────────────────────────────────────────────
@@ -303,7 +303,9 @@ export default async function main() {
       },
       p, ui.state, input, theme,
     );
-    windowEnd(sceneWin);
+    if (sceneWin.visible) {
+      windowEnd(sceneWin, p);
+    }
 
     // ── Audio/waveform placeholder window ─────────────────────────────────
     const audioWin = windowBegin(
@@ -325,7 +327,7 @@ export default async function main() {
         const col  = C.lerp(theme.accent, C.hex(0x80c8ff), amp);
         p.fillRoundedRect({ x: bx, y: by, w: barW, h: barH }, col, 1);
       }
-      windowEnd(audioWin);
+      windowEnd(audioWin, p);
     }
 
     // ── Minimised bar ─────────────────────────────────────────────────────
@@ -389,9 +391,14 @@ function buildMVP(t: number, aspect: number): Float32Array {
 
 function mat4Mul(a: Float32Array, b: Float32Array): Float32Array {
   const out = new Float32Array(16);
-  for (let i = 0; i < 4; i++)
-    for (let j = 0; j < 4; j++)
-      for (let k = 0; k < 4; k++)
-        out[i * 4 + j] += a[i * 4 + k] * b[k * 4 + j];
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      let sum = 0;
+      for (let k = 0; k < 4; k++) {
+        sum += a[k * 4 + r] * b[c * 4 + k];
+      }
+      out[c * 4 + r] = sum;
+    }
+  }
   return out;
 }
