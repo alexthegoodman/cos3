@@ -46,6 +46,21 @@ export class GpuContext {
   }
 
   /**
+   * Create an OffscreenCanvas and configure it with a WebGPU context.
+   * This acts as a bridge: WebGPU renders here, Konva uses it as an Image source.
+   */
+  createBridgeCanvas(w: number, h: number): { canvas: OffscreenCanvas, ctx: GPUCanvasContext } {
+    const canvas = new OffscreenCanvas(Math.max(1, w), Math.max(1, h));
+    const ctx    = canvas.getContext('webgpu') as GPUCanvasContext;
+    ctx.configure({
+      device:    this.device,
+      format:    this.format,
+      alphaMode: 'premultiplied',
+    });
+    return { canvas, ctx };
+  }
+
+  /**
    * Create a render-target texture for a first-party window.
    * The app renders into this; the compositor samples it.
    */
