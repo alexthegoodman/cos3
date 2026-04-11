@@ -12,7 +12,8 @@ export interface WindowConfig {
   closable?:     boolean;
   minimisable?:  boolean;
   /** If provided, this image/canvas will be displayed in the content area. */
-  sourceImage?:  ImageBitmap | OffscreenCanvas | HTMLCanvasElement;
+  sourceImage?:  ImageBitmap;
+  bridgeCanvas?: OffscreenCanvas | HTMLCanvasElement | null;
 }
 
 const MINI_W = 180;
@@ -126,6 +127,16 @@ export class VelWindow extends Konva.Group {
     // 5. Optional WebGPU Bridge
     if (cfg.sourceImage) {
       this.setContentImage(cfg.sourceImage);
+    }
+
+    if (cfg.bridgeCanvas) {
+      const img = new Konva.Image({
+        image:  cfg.bridgeCanvas as any,
+        width:  this.contentArea.width(),
+        height: this.contentArea.height(),
+        name:   'content-image',
+      });
+      this.contentArea.add(img);
     }
 
     // Drag start restriction

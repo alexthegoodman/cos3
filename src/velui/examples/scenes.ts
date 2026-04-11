@@ -4,7 +4,7 @@
 
 export interface Scene {
   init(device: GPUDevice, format: GPUTextureFormat): Promise<void>;
-  renderTo(device: GPUDevice, queue: GPUQueue, target: GPUTexture, t: number): void;
+  renderTo(device: GPUDevice, queue: GPUQueue, target: GPUTexture | GPUCanvasContext, t: number): void;
 }
 
 export class CubeScene implements Scene {
@@ -79,9 +79,19 @@ export class CubeScene implements Scene {
     this.ready = true;
   }
 
-  renderTo(device: GPUDevice, queue: GPUQueue, target: GPUTexture, t: number) {
+  renderTo(device: GPUDevice, queue: GPUQueue, target: GPUTexture | GPUCanvasContext | any, t: number) {
     if (!this.ready) return;
-    const w = target.width, h = target.height;
+
+    let w = 0, h = 0;
+
+    if (target.canvas) {
+      const canvas = (target as GPUCanvasContext).canvas as OffscreenCanvas;
+      w = canvas.width, h = canvas.height;
+    } else {
+      w = (target as GPUTexture).width, h = (target as GPUTexture).height;    
+    }
+
+    // console.info("w h", w, h, target)
 
     if (!this.depthTex || this.depthTex.width !== w || this.depthTex.height !== h) {
       this.depthTex?.destroy();
@@ -95,25 +105,35 @@ export class CubeScene implements Scene {
     queue.writeBuffer(this.uniformBuf, 0, mvp.buffer);
 
     const enc  = device.createCommandEncoder();
-    const pass = enc.beginRenderPass({
-      colorAttachments: [{
-        view:       target.createView(),
-        loadOp:     'clear',
-        storeOp:    'store',
-        clearValue: { r: 0.07, g: 0.07, b: 0.1, a: 1 },
-      }],
-      depthStencilAttachment: {
-        view:              this.depthTex.createView(),
-        depthLoadOp:       'clear',
-        depthStoreOp:      'store',
-        depthClearValue:   1,
-      },
-    });
-    pass.setPipeline(this.pipeline);
-    pass.setBindGroup(0, this.bindGroup);
-    this.draw(pass);
-    pass.end();
-    queue.submit([enc.finish()]);
+
+    let colorView = null;
+    if (target.canvas) {
+      colorView = target.getCurrentTexture().createView();
+    } else {
+      colorView = target.createView(); 
+    }
+
+    if (colorView) {
+      const pass = enc.beginRenderPass({
+        colorAttachments: [{
+          view:       colorView,
+          loadOp:     'clear',
+          storeOp:    'store',
+          clearValue: { r: 0.07, g: 0.07, b: 0.1, a: 1 },
+        }],
+        depthStencilAttachment: {
+          view:              this.depthTex.createView(),
+          depthLoadOp:       'clear',
+          depthStoreOp:      'store',
+          depthClearValue:   1,
+        },
+      });
+      pass.setPipeline(this.pipeline);
+      pass.setBindGroup(0, this.bindGroup);
+      this.draw(pass);
+      pass.end();
+      queue.submit([enc.finish()]);
+    }
   }
 
   protected draw(pass: GPURenderPassEncoder) {

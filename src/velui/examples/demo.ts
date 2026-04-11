@@ -15,31 +15,59 @@ export default async function main() {
   const ui     = await Ui.init(canvas);
   const theme  = ui.theme;
 
+  const useBitmap = false;
+
   // 1. Setup WebGPU Scenes
   const scenes = [
     { name: 'Cube',      scene: new CubeScene(),      x: 400, y: 40,  w: 440, h: 360 },
     { name: 'Pyramid',   scene: new PyramidScene(),   x: 860, y: 40,  w: 440, h: 360 },
-    { name: 'Plane',     scene: new PlaneScene(),     x: 400, y: 420, w: 440, h: 360 },
     { name: 'Particles', scene: new ParticleScene(),  x: 860, y: 420, w: 440, h: 360 },
+
+    { name: 'Cube 2',      scene: new CubeScene(),      x: 450, y: 90,  w: 440, h: 360 },
+    { name: 'Pyramid 2',   scene: new PyramidScene(),   x: 910, y: 90,  w: 440, h: 360 },
+    { name: 'Particles 2', scene: new ParticleScene(),  x: 910, y: 470, w: 440, h: 360 },
   ];
 
-  const sceneInstances: { win: Window, tex: GPUTexture, scene: Scene }[] = [];
+  const sceneInstances: { win: Window, tex: GPUTexture | GPUCanvasContext, scene: Scene }[] = [];
 
-  for (const s of scenes) {
-    await s.scene.init(ui.gpu.device, ui.gpu.format);
-    const tex = ui.gpu.createWindowTexture(s.w, s.h, `${s.name}-texture`);
-    
-    const win = new Window({
-      title:        `${s.name} Scene`,
-      x:            s.x,
-      y:            s.y,
-      width:        s.w,
-      height:       s.h,
-    }, theme);
-    ui.layer.add(win);
-    
-    sceneInstances.push({ win, tex, scene: s.scene });
+  if (useBitmap) {
+    for (const s of scenes) {
+      await s.scene.init(ui.gpu.device, ui.gpu.format);
+      const tex = ui.gpu.createWindowTexture(s.w, s.h, `${s.name}-texture`);
+      
+      const win = new Window({
+        title:        `${s.name} Scene`,
+        x:            s.x,
+        y:            s.y,
+        width:        s.w,
+        height:       s.h,
+      }, theme);
+      ui.layer.add(win);
+      
+      sceneInstances.push({ win, tex, scene: s.scene });
+    }
+  } else {
+     for (const s of scenes) {
+      await s.scene.init(ui.gpu.device, ui.gpu.format);
+      const bridge = ui.gpu.createBridgeCanvas(400, 300);
+      
+      const win = new Window({
+        title:        `${s.name} Scene`,
+        x:            s.x,
+        y:            s.y,
+        width:        s.w,
+        height:       s.h,
+        bridgeCanvas: bridge.canvas
+      }, theme);
+      ui.layer.add(win);
+      
+      sceneInstances.push({ win, tex: bridge.ctx, scene: s.scene });
+    }
   }
+
+  
+
+  
 
   // ── Controls Window ───────────────────────────────────────────────────
   const ctrlWin = new Window({
@@ -80,16 +108,18 @@ export default async function main() {
   // 3. Render Loop
   async function frame(time: number) {
     const t = time / 1000;
-
+    
     for (const inst of sceneInstances) {
       // 1. Update WebGPU scene
       inst.scene.renderTo(ui.gpu.device, ui.gpu.device.queue, inst.tex, t);
 
-      // 2. Copy GPU texture to ImageBitmap
-      const bitmap = await ui.gpu.copyTextureToBitmap(inst.tex);
-      
-      // 3. Update Konva window content
-      inst.win.setContentImage(bitmap);
+      if (inst.tex.__brand === "GPUTexture") {
+        // 2. Copy GPU texture to ImageBitmap
+        const bitmap = await ui.gpu.copyTextureToBitmap(inst.tex);
+        
+        // 3. Update Konva window content
+        inst.win.setContentImage(bitmap);
+      }
     }
 
     // 4. Redraw Konva layer
