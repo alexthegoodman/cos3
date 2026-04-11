@@ -1,0 +1,19 @@
+{
+  "name": "velui",
+  "version": "0.1.0",
+  "description": "WebGPU-native immediate-mode UI compositor for CommonOS",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "opentype.js": "^1.3.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@webgpu/types": "^0.1.40"
+  }
+}
