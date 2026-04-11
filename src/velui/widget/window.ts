@@ -11,8 +11,8 @@ export interface WindowConfig {
   draggable?:    boolean;
   closable?:     boolean;
   minimisable?:  boolean;
-  /** If provided, this canvas will be displayed in the content area. */
-  bridgeCanvas?: OffscreenCanvas | HTMLCanvasElement;
+  /** If provided, this image/canvas will be displayed in the content area. */
+  sourceImage?:  ImageBitmap | OffscreenCanvas | HTMLCanvasElement;
 }
 
 const MINI_W = 180;
@@ -123,15 +123,9 @@ export class VelWindow extends Konva.Group {
     });
     this.add(this.contentArea);
 
-    // 5. Optional WebGPU Bridge Canvas
-    if (cfg.bridgeCanvas) {
-      const img = new Konva.Image({
-        image:  cfg.bridgeCanvas as any,
-        width:  this.contentArea.width(),
-        height: this.contentArea.height(),
-        name:   'content-image',
-      });
-      this.contentArea.add(img);
+    // 5. Optional WebGPU Bridge
+    if (cfg.sourceImage) {
+      this.setContentImage(cfg.sourceImage);
     }
 
     // Drag start restriction
@@ -238,5 +232,21 @@ export class VelWindow extends Konva.Group {
       w: this.contentArea.width(),
       h: this.contentArea.height(),
     };
+  }
+
+  /** Update or set the content image (e.g. from WebGPU ImageBitmap). */
+  setContentImage(source: ImageBitmap | OffscreenCanvas | HTMLCanvasElement) {
+    let img = this.contentArea.findOne('.content-image') as Konva.Image;
+    if (img) {
+      img.image(source as any);
+    } else {
+      img = new Konva.Image({
+        image:  source as any,
+        width:  this.contentArea.width(),
+        height: this.contentArea.height(),
+        name:   'content-image',
+      });
+      this.contentArea.add(img);
+    }
   }
 }

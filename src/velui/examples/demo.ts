@@ -76,10 +76,9 @@ class CubeScene {
     this.ready = true;
   }
 
-  renderTo(device: GPUDevice, queue: GPUQueue, target: GPUCanvasContext, t: number) {
+  renderTo(device: GPUDevice, queue: GPUQueue, target: GPUTexture, t: number) {
     if (!this.ready) return;
-    const canvas = target.canvas as OffscreenCanvas;
-    const w = canvas.width, h = canvas.height;
+    const w = target.width, h = target.height;
 
     if (!this.depthTex || this.depthTex.width !== w || this.depthTex.height !== h) {
       this.depthTex?.destroy();
@@ -95,7 +94,7 @@ class CubeScene {
     const enc  = device.createCommandEncoder();
     const pass = enc.beginRenderPass({
       colorAttachments: [{
-        view:       target.getCurrentTexture().createView(),
+        view:       target.createView(),
         loadOp:     'clear',
         storeOp:    'store',
         clearValue: { r: 0.07, g: 0.07, b: 0.1, a: 1 },
@@ -126,10 +125,12 @@ export default async function main() {
   const ui     = await Ui.init(canvas);
   const theme  = ui.theme;
 
-  // 1. Setup WebGPU Bridge
+  // 1. Setup WebGPU Scene Target
   const cube = new CubeScene();
   await cube.init(ui.gpu.device, ui.gpu.format);
-  const bridge = ui.gpu.createBridgeCanvas(400, 300);
+  
+  // Create a texture to render into (replaces bridge canvas)
+  let sceneTex = ui.gpu.createWindowTexture(440, 360, 'scene-texture');
 
   // 2. Create Windows (Persistent Konva Nodes)
   
@@ -179,18 +180,24 @@ export default async function main() {
     y:            40,
     width:        440,
     height:       360,
-    bridgeCanvas: bridge.canvas,
   }, theme);
   ui.layer.add(sceneWin);
 
   // 3. Render Loop
-  function frame(time: number) {
+  async function frame(time: number) {
     const t = time / 1000;
 
-    // Update WebGPU scene
-    cube.renderTo(ui.gpu.device, ui.gpu.device.queue, bridge.ctx, t);
+    // 1. Update WebGPU scene
+    cube.renderTo(ui.gpu.device, ui.gpu.device.queue, sceneTex, t);
 
-    // Redraw Konva layer (important for the bridge canvas update)
+    // 2. Copy GPU texture to ImageBitmap (CPU bridge)
+    // ImageBitmap is very fast and bypasses the 16-canvas limit.
+    const bitmap = await ui.gpu.copyTextureToBitmap(sceneTex);
+    
+    // 3. Update Konva window content
+    sceneWin.setContentImage(bitmap);
+
+    // 4. Redraw Konva layer
     ui.render();
 
     requestAnimationFrame(frame);

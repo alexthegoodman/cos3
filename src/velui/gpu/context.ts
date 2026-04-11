@@ -46,21 +46,6 @@ export class GpuContext {
   }
 
   /**
-   * Create an OffscreenCanvas and configure it with a WebGPU context.
-   * This acts as a bridge: WebGPU renders here, Konva uses it as an Image source.
-   */
-  createBridgeCanvas(w: number, h: number): { canvas: OffscreenCanvas, ctx: GPUCanvasContext } {
-    const canvas = new OffscreenCanvas(Math.max(1, w), Math.max(1, h));
-    const ctx    = canvas.getContext('webgpu') as GPUCanvasContext;
-    ctx.configure({
-      device:    this.device,
-      format:    this.format,
-      alphaMode: 'premultiplied',
-    });
-    return { canvas, ctx };
-  }
-
-  /**
    * Create a render-target texture for a first-party window.
    * The app renders into this; the compositor samples it.
    */
@@ -72,8 +57,69 @@ export class GpuContext {
       usage:
         GPUTextureUsage.RENDER_ATTACHMENT |
         GPUTextureUsage.TEXTURE_BINDING   |
-        GPUTextureUsage.COPY_DST,
+        GPUTextureUsage.COPY_DST          |
+        GPUTextureUsage.COPY_SRC,
     });
+  }
+
+  /**
+   * Copies a GPUTexture to a CPU-side ImageBitmap.
+   * Uses a temporary buffer and copyTextureToBuffer.
+   */
+  async copyTextureToBitmap(tex: GPUTexture): Promise<ImageBitmap> {
+    const w = tex.width;
+    const h = tex.height;
+
+    // 1. Calculate alignment (bytesPerRow must be multiple of 256)
+    const bytesPerPixel = 4; // Assuming RGBA8Unorm or BGRA8Unorm
+    const unalignedBytesPerRow = w * bytesPerPixel;
+    const bytesPerRow = Math.ceil(unalignedBytesPerRow / 256) * 256;
+    const bufferSize = bytesPerRow * h;
+
+    // 2. Create/Reuse buffer (for simplicity now, we create one, but in production we'd pool)
+    const buffer = this.device.createBuffer({
+      label: 'copy-tex-buffer',
+      size:  bufferSize,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+
+    // 3. Encode copy
+    const enc = this.device.createCommandEncoder();
+    enc.copyTextureToBuffer(
+      { texture: tex },
+      { buffer, bytesPerRow },
+      [w, h]
+    );
+    this.device.queue.submit([enc.finish()]);
+
+    // 4. Map and Read
+    await buffer.mapAsync(GPUMapMode.READ);
+    const arrayBuffer = buffer.getMappedRange();
+    
+    // Konva / Canvas needs a Uint8ClampedArray for ImageData
+    // If we have padding, we must strip it or use a subset
+    let data = new Uint8ClampedArray(arrayBuffer);
+    
+    if (bytesPerRow !== unalignedBytesPerRow) {
+      // Manual row-by-row copy to strip padding
+      const stripped = new Uint8ClampedArray(unalignedBytesPerRow * h);
+      for (let y = 0; y < h; y++) {
+        const srcOffset = y * bytesPerRow;
+        const dstOffset = y * unalignedBytesPerRow;
+        stripped.set(data.subarray(srcOffset, srcOffset + unalignedBytesPerRow), dstOffset);
+      }
+      data = stripped;
+    } else {
+      // Just clone it because unmap() will invalidate the mapped range
+      data = new Uint8ClampedArray(data);
+    }
+
+    buffer.unmap();
+    buffer.destroy();
+
+    // 5. Convert to ImageBitmap
+    const imageData = new ImageData(data, w, h);
+    return await createImageBitmap(imageData);
   }
 
   /**
