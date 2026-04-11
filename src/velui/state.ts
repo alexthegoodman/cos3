@@ -35,12 +35,16 @@ export interface WidgetState {
   hoverSpring:  Spring;
   /** Spring for open/close scale (0 = closed, 1 = open). */
   openSpring:   Spring;
+  /** Spring for minimise transition (0 = normal, 1 = minimised). */
+  miniSpring:   Spring;
   /** Whether a window/panel is "open". */
   isOpen:       boolean;
   /** Whether a window is minimised to the taskbar. */
   isMinimised:  boolean;
   /** Draggable window position. */
   winRect:      Rect;
+  /** Target rect when minimised. */
+  miniRect:     Rect;
   /** Scroll offset in pixels. */
   scrollY:      number;
   /** Selected tab index. */
@@ -55,9 +59,11 @@ function makeWidgetState(): WidgetState {
   return {
     hoverSpring:  Spring.snappy(),
     openSpring:   Spring.snappy(),
+    miniSpring:   Spring.snappy(),
     isOpen:       false,
     isMinimised:  false,
     winRect:      { x: 0, y: 0, w: 0, h: 0 },
+    miniRect:     { x: 0, y: 0, w: 0, h: 0 },
     scrollY:      0,
     tabIndex:     0,
     cursor:       0,
@@ -110,6 +116,7 @@ export class FrameState {
     for (const ws of this.widgets.values()) {
       if (ws.hoverSpring.update(ws.hoverSpring.value, dt)) this.needsRepaint = true;
       if (ws.openSpring.update(ws.openSpring.value, dt))   this.needsRepaint = true;
+      if (ws.miniSpring.update(ws.miniSpring.value, dt))   this.needsRepaint = true;
     }
   }
 }

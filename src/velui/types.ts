@@ -62,7 +62,7 @@ export const Color = {
   toF32(c: Color): [number, number, number, number] {
     return [c.r / 255, c.g / 255, c.b / 255, c.a / 255];
   },
-  TRANSPARENT: { r: 0, g: 0, b: 0, a: 0 } as Color,
+  TRANSPARENT: { r: 200, g: 0, b: 0, a: 0 } as Color,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -294,41 +294,41 @@ export default async function main() {
 
     // ── 3D Scene window ───────────────────────────────────────────────────
     // sceneTexture is rendered above; we hand it to the window for compositing.
-    const sceneWin = windowBegin(
-      IDs.winScene,
-      {
-        title:          'WebGPU Scene',
-        defaultRect:    R.make(400, 40, 440, 360),
-        contentTexture: sceneTexture ?? undefined,
-      },
-      p, ui.state, input, theme,
-    );
-    if (sceneWin.visible) {
-      windowEnd(sceneWin, p);
-    }
+    // const sceneWin = windowBegin(
+    //   IDs.winScene,
+    //   {
+    //     title:          'WebGPU Scene',
+    //     defaultRect:    R.make(400, 40, 440, 360),
+    //     // contentTexture: sceneTexture ?? undefined,
+    //   },
+    //   p, ui.state, input, theme,
+    // );
+    // if (sceneWin.visible) {
+    //   windowEnd(sceneWin, p);
+    // }
 
     // ── Audio/waveform placeholder window ─────────────────────────────────
-    const audioWin = windowBegin(
-      IDs.winAudio,
-      { title: 'Audio', defaultRect: R.make(40, 560, 320, 140) },
-      p, ui.state, input, theme,
-    );
-    if (audioWin.visible) {
-      // Draw a fake waveform using horizontal quads
-      const r = audioWin.contentRect;
-      const barW = 3;
-      const barGap = 1;
-      const count  = Math.floor(r.w / (barW + barGap));
-      for (let i = 0; i < count; i++) {
-        const amp  = Math.sin(t * 4 + i * 0.3) * 0.5 + 0.5;
-        const barH = amp * (r.h * 0.8);
-        const bx   = r.x + i * (barW + barGap);
-        const by   = r.y + r.h / 2 - barH / 2;
-        const col  = C.lerp(theme.accent, C.hex(0x80c8ff), amp);
-        p.fillRoundedRect({ x: bx, y: by, w: barW, h: barH }, col, 1);
-      }
-      windowEnd(audioWin, p);
-    }
+    // const audioWin = windowBegin(
+    //   IDs.winAudio,
+    //   { title: 'Audio', defaultRect: R.make(40, 560, 320, 140) },
+    //   p, ui.state, input, theme,
+    // );
+    // if (audioWin.visible) {
+    //   // Draw a fake waveform using horizontal quads
+    //   const r = audioWin.contentRect;
+    //   const barW = 3;
+    //   const barGap = 1;
+    //   const count  = Math.floor(r.w / (barW + barGap));
+    //   for (let i = 0; i < count; i++) {
+    //     const amp  = Math.sin(t * 4 + i * 0.3) * 0.5 + 0.5;
+    //     const barH = amp * (r.h * 0.8);
+    //     const bx   = r.x + i * (barW + barGap);
+    //     const by   = r.y + r.h / 2 - barH / 2;
+    //     const col  = C.lerp(theme.accent, C.hex(0x80c8ff), amp);
+    //     p.fillRoundedRect({ x: bx, y: by, w: barW, h: barH }, col, 1);
+    //   }
+    //   windowEnd(audioWin, p);
+    // }
 
     // ── Minimised bar ─────────────────────────────────────────────────────
     miniBar(
