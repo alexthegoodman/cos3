@@ -553,7 +553,7 @@ export class GpuAtlas {
     this.texture = this.gpu.device.createTexture({
       label:  'velui-atlas',
       size:   [this.size, this.size, 1],
-      format: 'rgba8unorm',
+      format: this.gpu.format,
       usage:
         GPUTextureUsage.TEXTURE_BINDING |
         GPUTextureUsage.COPY_DST        |

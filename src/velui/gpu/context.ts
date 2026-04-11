@@ -53,7 +53,7 @@ export class GpuContext {
     return this.device.createTexture({
       label,
       size:   [Math.max(1, w), Math.max(1, h), 1],
-      format: 'rgba8unorm',
+      format: this.format,
       usage:
         GPUTextureUsage.RENDER_ATTACHMENT |
         GPUTextureUsage.TEXTURE_BINDING   |
