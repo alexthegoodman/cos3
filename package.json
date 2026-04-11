@@ -6,14 +6,15 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch"
+    "build": "vite build",
+    "dev": "vite"
   },
   "dependencies": {
     "opentype.js": "^1.3.4"
   },
   "devDependencies": {
+    "@webgpu/types": "^0.1.40",
     "typescript": "^5.4.0",
-    "@webgpu/types": "^0.1.40"
+    "vite": "^8.0.8"
   }
 }
