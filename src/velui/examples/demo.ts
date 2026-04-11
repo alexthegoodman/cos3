@@ -121,8 +121,8 @@ class CubeScene {
 
 export default async function main() {
   const canvas = document.querySelector<HTMLCanvasElement>('#app')!;
-  canvas.width = 1920;
-  canvas.height = 1080;
+  canvas.width = 1600;
+  canvas.height = 800;
   const ui     = await Ui.init(canvas);
   const theme  = ui.theme;
 
