@@ -1,10 +1,10 @@
 # COS3 / CommonOS 3
 
-A designed OS (best design) and interop platform. Built in chat. Great window management, responsive (phones to TVs). Apps use the SDK which comes with a beautiful UI kit and interop capabilities. 
+A designed OS (best design) and interop platform. Built in chat. Great window management, responsive (phones to TVs). Apps use the SDK which comes with a beautiful UI kit and interop capabilities. The hook is purely design, aesthetic, and UX, but the retention is thanks to interop and community benefits.
 
-CommonOS is a high-fidelity OS and interop platform meant to be a responsive WASM PWA written with Rust and wgpu.
+CommonOS is a high-fidelity OS and interop platform meant to be a responsive PWA written in TypeScript.
 
-I am moving forward with CommonOS as a WASM PWA so it can be used on any device with a browser. That means a lot of platforms are supported. I lose filesystem access, but it doesn't matter because individual apps will be expected to serve their own data (and make it available via interop).
+I am moving forward with CommonOS as a PWA so it can be used on any device with a browser. That means a lot of platforms are supported. I lose filesystem access, but it doesn't matter because individual apps will be expected to serve their own data (and make it available via interop).
 
 ## JavaScript App SDK Requirements (this enables the robust interop capabilities)
 
@@ -27,7 +27,7 @@ I am moving forward with CommonOS as a WASM PWA so it can be used on any device 
 - XML or JSX-based UI specification? Higher level primitives that will leverage our lower level text and rectangle primitives (otherwise immediate mode style is fine too)
 - Uses quickjs
 
-## Rust-Side UI SDK Requirements
+## UI SDK Requirements
 
 Components (not all needed right away):
 
@@ -36,14 +36,14 @@ Components (not all needed right away):
 - Inputs (text, number, textarea with wrapping)
 - Text (one-line and multi-line)
 - Containers (with external and internal positioning settings)
-- Images (and dynamic textures provided by wgpu for rendering different scenes into different windows)
+- Images (and dynamic textures provided by WebGPU for rendering different scenes into different windows)
 - Tabs
 - Dropdown
 
 ## OS Requirements
 
 - Responsiveness (just need functions which simplify the styling of elements depending on current screen size or browser size, no need for generic mobile styling)
-- Show Time and Weather and Stocks and News?
+- Show Time and Weather and Stocks and News? (any free tiers for testing?)
 - Notifications (apps can be polled for new notifications periodically?)
 - Volume control
 - Data Browser (browse all your data from any app you use and do what you want with that data)
