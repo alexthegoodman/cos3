@@ -49,7 +49,8 @@ Components (not all needed right away):
 - Data Browser (browse all your data from any app you use and do what you want with that data)
 - Chat for app control and app creation
 - Universal search (searches all data via the data interop)
-- App Store (all free for now, basic approvals, can do API side later)
+- App Store (all free for now, basic approvals)
 - Continuously enhance the visual aesthetic and improve the UI widget offerings
 - Resize UI windows
 - Enable auto-size mode for UI windows (usually on TV devices) (ensures that the most recent window takes most space, 2 windows before that take up medium space, and the rest just fill the mini bar row of mini windows at the bottom of the screen)
+- Wallpapers (including live shader wallpapers)

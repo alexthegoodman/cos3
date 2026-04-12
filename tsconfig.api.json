@@ -5,12 +5,11 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "strict": true,
-    "rootDir": "./",
-    "outDir": "./dist",
+    "rootDir": "./api",
+    "outDir": "../dist-api",
     "declaration": true,
     "sourceMap": true,
-    "lib": ["ES2022", "DOM"],
-    "types": ["@webgpu/types"]
+    "lib": ["ES2022"]
   },
-  "include": ["src/**/*"],
+  "include": ["api/**/*"],
 }
