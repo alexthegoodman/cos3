@@ -1,10 +1,13 @@
 import express from "express";
+import { prisma } from "./lib/prisma";
 
-const app = express()
-const port = 3001
+const app = express();
+const port = 3001;
 
-app.get('/', (req, res) => {
-  res.send('Hello World!');
+app.get('/', async (req, res) => {
+  let userCount = await prisma.user.count();
+
+  res.send('User Count: ' + userCount);
 });
 
 app.listen(port, () => {
