@@ -17,7 +17,7 @@ export interface WindowConfig {
 }
 
 const MINI_W = 180;
-const MINI_H = 64;
+const MINI_H = 128;
 
 /**
  * VelWindow — a persistent Konva.Group representing a UI window.
