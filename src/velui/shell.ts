@@ -135,13 +135,14 @@ export class UIBridge {
       case 'image':
         if (props.src === 'gpu-scene') {
            // Dynamic WebGPU Scene placeholder
-           const bridge = this.shell.ui.gpu.createBridgeCanvas(cur.bounds.w, 300);
+           const layout = cur.next(300);
+           const bridge = this.shell.ui.gpu.createBridgeCanvas(layout.w, layout.h);
            const img = new Konva.Image({
              image: bridge.canvas,
-             x: cur.bounds.x,
-             y: cur.next(300).y,
-             width: cur.bounds.w,
-             height: 300,
+             x: layout.x,
+             y: layout.y,
+             width: layout.w,
+             height: layout.h,
              name: 'gpu-scene-image'
            });
            parent.add(img);

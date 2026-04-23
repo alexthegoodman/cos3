@@ -98,7 +98,10 @@ export default async function main() {
            const renderer = globalRegistry.getRenderer(appId, name);
            if (renderer) {
              // Host calls the registered renderer with the bridge context
-             renderer.render(info.ctx, { time: t });
+             // renderTo signature: (device, queue, target, time)
+             renderer.render(ui.gpu.device, ui.gpu.device.queue, info.ctx, t);
+             // Manually mark the Konva image as dirty because it uses a bridge canvas
+             img.getLayer()?.batchDraw();
            }
          }
        }
