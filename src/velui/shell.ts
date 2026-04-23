@@ -31,7 +31,7 @@ export class StatusBar extends Konva.Group {
     this.getLayer()?.batchDraw();
   }
 
-  setSize(w: number, h: number) {
+  setBarSize(w: number, h: number) {
     this.bg.width(w);
     this.bg.height(h);
     this.timeLabel.x(w - 110);
@@ -72,7 +72,7 @@ export class Shell {
     this.statusLayer.add(this.statusBar);
 
     // 3. Default Wallpaper
-    this.setWallpaper(Color.toCss(this.ui.theme.background));
+    this.setWallpaper(Color.toCss(this.ui.theme.bg));
 
     // 4. Resize handling
     window.addEventListener('resize', () => this.onResize());
@@ -114,7 +114,7 @@ export class Shell {
       this.wallpaper.height(h);
     }
 
-    this.statusBar.setSize(w, 32);
+    this.statusBar.setBarSize(w, 32);
     
     this.wallpaperLayer.batchDraw();
     this.windowLayer.batchDraw();

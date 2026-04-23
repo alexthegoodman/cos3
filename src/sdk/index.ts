@@ -30,7 +30,7 @@ export function deepClone<T>(value: T): T {
 /**
  * Tiny typed event emitter used throughout the SDK.
  */
-export class EventEmitter<EventMap extends { [K: string]: unknown }> {
+export class EventEmitter<EventMap extends Record<string, any>> {
   private listeners: {
     [K in keyof EventMap]?: Set<(payload: EventMap[K]) => void>;
   } = {};

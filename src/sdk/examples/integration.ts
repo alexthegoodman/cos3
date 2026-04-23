@@ -66,7 +66,8 @@ manager.on("appError", ({ appId, message }) => {
 globalRegistry.registerSharedFunction(
   "weather.app.cos3",
   "getWeather",
-  async ({ city }: { city: string }) => {
+  async (args: any) => {
+    const { city } = args as { city: string };
     // TODO: real weather fetch
     return { city, temp: 18, condition: "Partly cloudy" };
   }

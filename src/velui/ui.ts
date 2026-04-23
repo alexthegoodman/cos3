@@ -22,7 +22,7 @@ export class Ui {
 
     // Initialize Konva Stage using the provided canvas (it will be cleared/wrapped)
     this.stage = new Konva.Stage({
-      container: canvas.parentElement!,
+      container: canvas.parentElement as HTMLDivElement,
       width:     canvas.width  / devicePixelRatio,
       height:    canvas.height / devicePixelRatio,
     });
