@@ -6,7 +6,7 @@ CommonOS is a high-fidelity OS and interop platform meant to be a responsive PWA
 
 I am moving forward with CommonOS as a PWA so it can be used on any device with a browser. That means a lot of platforms are supported. I lose filesystem access, but it doesn't matter because individual apps will be expected to serve their own data (and make it available via interop).
 
-## JavaScript App SDK Requirements (this enables the robust interop capabilities)
+## JavaScript App SDK Requirements (this enables the robust interop capabilities) (this exists now in /sdk/ folder)
 
 - Register App (with unique id like `username.appname.com`)
 - Register Data Construct (Share and load saved data) (Dependency Injection?)
@@ -28,7 +28,7 @@ I am moving forward with CommonOS as a PWA so it can be used on any device with 
 - Uses quickjs
 - We may not need to register everything outside of quickjs, we may be able to manage somethings in the JavaScript app-side scripts
 
-## UI SDK Requirements
+## UI SDK Requirements (this exists now in /velui/ folder)
 
 Components (not all needed right away):
 
