@@ -1,4 +1,4 @@
-import sdkDemo from "./sdk/demo";
+import sdkDemo from "./velui/examples/demo";
 
 // ─────────────────────────────────────────────────────────────────────────────
 sdkDemo().catch(console.error);
