@@ -2,7 +2,7 @@ import { Ui, Shell } from '../index';
 import { AppManager } from '../../sdk/app-manager';
 import { globalRegistry, type RenderFunction } from '../../sdk/registry';
 import { GUEST_UI_SCRIPT } from '../../sdk/spec';
-import { CubeScene, PyramidScene } from './scenes';
+import { CubeScene, PyramidScene, PlaneScene, ParticleScene } from './scenes';
 import type { SandboxHostAPIs } from '../../sdk/sandbox';
 
 export default async function main() {
@@ -57,31 +57,49 @@ export default async function main() {
   await pyramid.init(ui.gpu.device, ui.gpu.format);
   globalRegistry.registerRenderer('system', 'pyramid', 'webgpu', pyramid.renderTo.bind(pyramid) as any);
 
-  // 3. Simple App Script
-  const appCode = `
+  const plane = new PlaneScene();
+  await plane.init(ui.gpu.device, ui.gpu.format);
+  globalRegistry.registerRenderer('system', 'plane', 'webgpu', plane.renderTo.bind(plane) as any);
+
+  const particles = new ParticleScene();
+  await particles.init(ui.gpu.device, ui.gpu.format);
+  globalRegistry.registerRenderer('system', 'particles', 'webgpu', particles.renderTo.bind(particles) as any);
+
+  // 3. Simple App Scripts
+  const createAppScript = (title: string, scene: string, content: string) => `
     const { UI } = globalThis;
 
     UI.render(
-      UI.Window({ title: 'My WebGPU App', width: 500, height: 600 },
-        UI.Text({ content: 'Hello from Sandboxed JS!', size: 24 }),
+      UI.Window({ title: '${title}', width: 400, height: 450 },
+        UI.Text({ content: '${content}', size: 18 }),
         UI.Container({ layout: 'column', gap: 10 },
-          UI.Text({ content: 'Below is a system-provided Cube:' }),
-          UI.Image('gpu-scene', { sceneName: 'system::cube' }),
-          UI.Button('Click Me', { onClick: 'onBtnClick' })
+          UI.Image('gpu-scene', { sceneName: 'system::${scene}' }),
+          UI.Button('Action', { onClick: 'onBtnClick' })
         )
       )
     );
-
-    console.log("App initialized");
   `;
 
-  manager.registerApp({
-    id: 'demo.app',
-    name: 'Demo App',
-    version: '1.0.0'
-  });
+  const apps = [
+    { id: 'cube.app', name: 'Cube Viewer', scene: 'cube', desc: 'A rotating 3D Cube' },
+    { id: 'pyramid.app', name: 'Pyramid Power', scene: 'pyramid', desc: 'Mystical geometric shapes' },
+    { id: 'plane.app', name: 'Grid World', scene: 'plane', desc: 'Infinite checkerboard' },
+    { id: 'particles.app', name: 'Star Field', scene: 'particles', desc: '1,000 floating points' },
+  ];
 
-  await manager.launchApp('demo.app', GUEST_UI_SCRIPT + appCode);
+  for (let i = 0; i < apps.length; i++) {
+    const app = apps[i];
+    manager.registerApp({
+      id: app.id,
+      name: app.name,
+      version: '1.0.0'
+    });
+    
+    // Staggered launch
+    setTimeout(async () => {
+      await manager.launchApp(app.id, GUEST_UI_SCRIPT + createAppScript(app.name, app.scene, app.desc));
+    }, i * 500);
+  }
 
   // 4. Main Render Loop
   async function frame(time: number) {
