@@ -112,6 +112,11 @@ export default async function main() {
          const info = (img as any)._gpuBridge;
          const sceneName = (img as any)._sceneName;
          if (info && sceneName) {
+           // Resize bridge if needed
+           if (info.canvas.width !== Math.floor(img.width()) || info.canvas.height !== Math.floor(img.height())) {
+             ui.gpu.resizeBridgeCanvas(info, img.width(), img.height());
+           }
+
            const [appId, name] = sceneName.split('::');
            const renderer = globalRegistry.getRenderer(appId, name);
            if (renderer) {

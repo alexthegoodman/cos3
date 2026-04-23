@@ -29,6 +29,7 @@ export class VelWindow extends Konva.Group {
   readonly contentArea: Konva.Group;
   readonly closeBtn:    Konva.Circle;
   readonly miniBtn:     Konva.Circle;
+  readonly resizeHandle: Konva.Group;
 
   private _isMinimised = false;
   private _originalRect: { x: number, y: number, w: number, h: number };
@@ -119,12 +120,73 @@ export class VelWindow extends Konva.Group {
       width:  cfg.width - 2,
       height: cfg.height - theme.titleBarHeight - 1,
       clipFunc: (ctx) => {
-        ctx.rect(0, 0, cfg.width - 2, cfg.height - theme.titleBarHeight - 1);
+        ctx.rect(0, 0, this.contentArea.width(), this.contentArea.height());
       },
     });
     this.add(this.contentArea);
 
-    // 5. Optional WebGPU Bridge
+    // 5. Resize Handle
+    this.resizeHandle = new Konva.Group({
+      x: cfg.width - 20,
+      y: cfg.height - 20,
+      width: 20,
+      height: 20,
+      draggable: true,
+    });
+    this.add(this.resizeHandle);
+
+    // Visible indicator (small triangle lines)
+    const line1 = new Konva.Line({
+      points: [10, 20, 20, 10],
+      stroke: Color.toCss(theme.textDim),
+      strokeWidth: 1,
+      listening: false,
+    });
+    const line2 = new Konva.Line({
+      points: [15, 20, 20, 15],
+      stroke: Color.toCss(theme.textDim),
+      strokeWidth: 1,
+      listening: false,
+    });
+    this.resizeHandle.add(line1, line2);
+
+    // Invisible hit area
+    const hitArea = new Konva.Rect({
+      width: 20,
+      height: 20,
+      fill: 'transparent',
+    });
+    this.resizeHandle.add(hitArea);
+
+    this.resizeHandle.on('mouseenter', () => {
+      const stage = this.getStage();
+      if (stage) stage.container().style.cursor = 'nwse-resize';
+      line1.stroke(Color.toCss(theme.text));
+      line2.stroke(Color.toCss(theme.text));
+      this.getLayer()?.batchDraw();
+    });
+    this.resizeHandle.on('mouseleave', () => {
+      const stage = this.getStage();
+      if (stage) stage.container().style.cursor = 'default';
+      line1.stroke(Color.toCss(theme.textDim));
+      line2.stroke(Color.toCss(theme.textDim));
+      this.getLayer()?.batchDraw();
+    });
+
+    this.resizeHandle.on('dragmove', () => {
+      const newW = Math.max(200, this.resizeHandle.x() + 20);
+      const newH = Math.max(100, this.resizeHandle.y() + 20);
+      
+      this.resize(newW, newH, theme);
+      
+      // Reset handle position relative to window
+      this.resizeHandle.x(this.background.width() - 20);
+      this.resizeHandle.y(this.background.height() - 20);
+      
+      this.getLayer()?.batchDraw();
+    });
+
+    // 6. Optional WebGPU Bridge
     if (cfg.sourceImage) {
       this.setContentImage(cfg.sourceImage);
     }
@@ -222,6 +284,33 @@ export class VelWindow extends Konva.Group {
     this.getLayer()?.batchDraw();
     
     this.realignMinimizedWindows();
+  }
+
+  resize(w: number, h: number, theme: Theme) {
+    this._originalRect.w = w;
+    this._originalRect.h = h;
+
+    this.background.width(w);
+    this.background.height(h);
+
+    const titleBg = this.titleBar.findOne('.title-bg') as Konva.Rect;
+    if (titleBg) titleBg.width(w);
+    this.titleBar.width(w);
+
+    this.closeBtn.x(w - 20);
+    this.miniBtn.x(w - 40);
+
+    this.contentArea.width(w - 2);
+    this.contentArea.height(h - theme.titleBarHeight - 1);
+
+    // Update content images if they exist
+    this.contentArea.find('Image').forEach((img: any) => {
+      img.width(this.contentArea.width());
+      img.height(this.contentArea.height());
+    });
+
+    this.resizeHandle.x(w - 20);
+    this.resizeHandle.y(h - 20);
   }
 
   private realignMinimizedWindows() {

@@ -60,6 +60,21 @@ export class GpuContext {
     return { canvas, ctx };
   }
 
+  /** Resize an existing bridge canvas and reconfigure its context. */
+  resizeBridgeCanvas(bridge: { canvas: OffscreenCanvas, ctx: GPUCanvasContext }, w: number, h: number) {
+    const nw = Math.max(1, Math.floor(w));
+    const nh = Math.max(1, Math.floor(h));
+    if (bridge.canvas.width === nw && bridge.canvas.height === nh) return;
+
+    bridge.canvas.width = nw;
+    bridge.canvas.height = nh;
+    bridge.ctx.configure({
+      device:    this.device,
+      format:    this.format,
+      alphaMode: 'premultiplied',
+    });
+  }
+
   /**
    * Create a render-target texture for a first-party window.
    * The app renders into this; the compositor samples it.

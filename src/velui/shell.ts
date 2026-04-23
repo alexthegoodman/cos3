@@ -112,7 +112,7 @@ export class UIBridge {
     if (!win) {
       win = new VelWindow({
         title,
-        x: 100 + this.windows.size * 40,
+        x: 100 + this.windows.size * 240,
         y: 100 + this.windows.size * 40,
         width,
         height,
