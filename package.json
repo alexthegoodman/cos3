@@ -14,6 +14,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
+    "@sebastianwessel/quickjs": "^3.0.1",
     "@types/gl-matrix": "^2.4.5",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",

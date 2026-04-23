@@ -26,6 +26,7 @@ I am moving forward with CommonOS as a PWA so it can be used on any device with 
 - Get window size
 - XML or JSX-based UI specification? Higher level primitives that will leverage our lower level text and rectangle primitives (otherwise immediate mode style is fine too)
 - Uses quickjs
+- We may not need to register everything outside of quickjs, we may be able to manage somethings in the JavaScript app-side scripts
 
 ## UI SDK Requirements
 

@@ -1,4 +1,4 @@
-import main from "./velui/examples/demo";
+import sdkDemo from "./sdk/demo";
 
 // ─────────────────────────────────────────────────────────────────────────────
-main().catch(console.error);
+sdkDemo().catch(console.error);
