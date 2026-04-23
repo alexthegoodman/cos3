@@ -123,8 +123,9 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     const result = this.vm.evalCode(code, `<${this.appId}>`);
     if (result.error) {
       const errStr = this.vm.dump(result.error);
+      console.error(errStr)
       result.error.dispose();
-      return { ok: false, error: String(errStr) };
+      return { ok: false, error: String(JSON.stringify(errStr)) };
     }
     result.value.dispose();
     return { ok: true };

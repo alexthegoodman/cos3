@@ -84,7 +84,7 @@ export class AppManager extends EventEmitter<AppManagerEvents> {
     if (!result.ok) {
       sandbox.dispose();
       this.sandboxes.delete(appId);
-      throw new Error(`[COS3] App "${appId}" failed on launch: ${result.error}`);
+      throw new Error(`[COS3] App "${appId}" failed on launch: ${JSON.stringify(result.error)}`);
     }
 
     // Deliver mount event
