@@ -1,4 +1,4 @@
-import sdkDemo from "./velui/examples/demo";
+import shellDemo from "./velui/examples/shell_demo";
 
 // ─────────────────────────────────────────────────────────────────────────────
-sdkDemo().catch(console.error);
+shellDemo().catch(console.error);

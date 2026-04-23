@@ -41,11 +41,11 @@ Components (not all needed right away):
 - Tabs
 - Dropdown
 
-## OS Requirements
+## OS Requirements (first priority now)
 
 - Responsiveness (just need functions which simplify the styling of elements depending on current screen size or browser size, no need for generic mobile styling)
-- Show Time and Weather and Stocks and News? (any free tiers for testing?)
-- Notifications (apps can be polled for new notifications periodically?)
+- Show Time and Weather and Stocks and News? (any free tiers for testing?) (actually just placeholder example weather for now, we can focus on ui polish)
+- Notifications (apps can be polled for new notifications periodically?) (to start, we will just focus on ui, then we will integrate)
 - Volume control
 - Data Browser (browse all your data from any app you use and do what you want with that data)
 - Chat for app control and app creation

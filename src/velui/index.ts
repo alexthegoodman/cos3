@@ -1,5 +1,6 @@
 // Core
 export { Ui } from './ui';
+export { Shell } from './shell';
 export { GpuContext } from './gpu/context';
 export { LayoutCursor, HCursor } from './layout';
 export { Spring, ease } from './anim';
