@@ -13,7 +13,7 @@ export class VelLabel extends Konva.Text {
       y:          rect.y + (rect.h - (fontSize ?? theme.fontSize)) / 2,
       width:      rect.w,
       fontSize:   fontSize ?? theme.fontSize,
-      fontFamily: 'sans-serif',
+      fontFamily: 'Sofia Sans',
       fill:       Color.toCss(color ?? theme.text),
       align:      'left',
     });
@@ -47,7 +47,7 @@ export class VelButton extends Konva.Group {
       width:      rect.w,
       height:     rect.h,
       fontSize:   theme.fontSize,
-      fontFamily: 'sans-serif',
+      fontFamily: 'Sofia Sans',
       fill:       Color.toCss(theme.text),
       align:      'center',
       verticalAlign: 'middle',

@@ -79,7 +79,7 @@ export class VelWindow extends Konva.Group {
     this.titleText = new Konva.Text({
       text:       cfg.title,
       fontSize:   theme.fontSizeTitle,
-      fontFamily: 'sans-serif',
+      fontFamily: 'Sofia Sans',
       fill:       Color.toCss(theme.text),
       x:          theme.padding,
       y:          (theme.titleBarHeight - theme.fontSizeTitle) / 2,

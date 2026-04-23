@@ -15,23 +15,50 @@ import { LayoutCursor } from './layout';
 export class StatusBar extends Konva.Group {
   private bg: VelContainer;
   private timeLabel: VelLabel;
+  private weatherLabel: VelLabel;
   private startBtn: VelButton;
   private timer: any;
 
   constructor(width: number, height: number, theme: Theme, onStartClick: () => void) {
     super();
 
-    this.bg = new VelContainer({ x: 0, y: 0, w: width, h: height }, theme, { raised: true });
-    this.bg.cornerRadius(0);
+    // notifications bar
+    this.bg = new VelContainer({ x: (width / 2) - 100, y: 10, w: 200, h: height }, theme, { raised: true });
+    this.bg.cornerRadius(25);
     this.add(this.bg);
 
-    this.startBtn = new VelButton('CommonOS', { x: 4, y: 4, w: 100, h: height - 8 }, theme);
+    let lightGray = { r: 70, g: 70, b: 70, a: 255 };
+
+    this.startBtn = new VelButton('x', {  x: (width / 2) - 60, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.startBtn.rect.cornerRadius(25);
     this.startBtn.on('click tap', onStartClick);
     this.add(this.startBtn);
 
-    this.timeLabel = new VelLabel('', { x: width - 110, y: 0, w: 100, h: height }, theme);
+    this.startBtn = new VelButton('x', {  x: (width / 2) - 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.startBtn.rect.cornerRadius(25);
+    this.startBtn.on('click tap', onStartClick);
+    this.add(this.startBtn);
+
+    this.startBtn = new VelButton('x', {  x: (width / 2), y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.startBtn.rect.cornerRadius(25);
+    this.startBtn.on('click tap', onStartClick);
+    this.add(this.startBtn);
+
+    this.startBtn = new VelButton('x', {  x: (width / 2) + 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.startBtn.rect.cornerRadius(25);
+    this.startBtn.on('click tap', onStartClick);
+    this.add(this.startBtn);
+
+    // time and weather
+    this.timeLabel = new VelLabel('', { x: width - 125, y: 15, w: 100, h: height }, { ...theme, fontSize: 20 });
     this.timeLabel.align('right');
     this.add(this.timeLabel);
+
+    let lightGray2 = { r: 170, g: 170, b: 170, a: 255 };
+
+    this.weatherLabel = new VelLabel('72 F, Sunny', { x: width - 125, y: 37, w: 100, h: height }, { ...theme, fontSize: 16, text: lightGray2 });
+    this.weatherLabel.align('right');
+    this.add(this.weatherLabel);
 
     this.updateTime();
     this.timer = setInterval(() => this.updateTime(), 1000);
