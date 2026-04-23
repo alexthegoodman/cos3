@@ -158,6 +158,10 @@ export class VelWindow extends Konva.Group {
     });
     this.resizeHandle.add(hitArea);
 
+    this.resizeHandle.on('dragstart', (e) => {
+      e.cancelBubble = true;
+    });
+
     this.resizeHandle.on('mouseenter', () => {
       const stage = this.getStage();
       if (stage) stage.container().style.cursor = 'nwse-resize';

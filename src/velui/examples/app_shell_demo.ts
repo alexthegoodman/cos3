@@ -74,7 +74,7 @@ export default async function main() {
         UI.Text({ content: '${content}', size: 18 }),
         UI.Container({ layout: 'column', gap: 10 },
           UI.Image('gpu-scene', { sceneName: 'system::${scene}' }),
-          UI.Button('Action', { onClick: 'onBtnClick' })
+          // UI.Button('Action', { onClick: 'onBtnClick' })
         )
       )
     );
