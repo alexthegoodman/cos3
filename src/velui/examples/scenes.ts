@@ -1,3 +1,5 @@
+import { mat4 } from 'gl-matrix';
+
 /**
  * Shared 3D Scene Primitives for VelUI Demos
  */
@@ -296,31 +298,19 @@ export class ParticleScene extends CubeScene {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildMVP(t: number, aspect: number): Float32Array {
-  const fov  = Math.PI / 4;
-  const near = 0.1, far = 100;
-  const f    = 1 / Math.tan(fov / 2);
-  const persp = new Float32Array([
-    f / aspect, 0,  0,                        0,
-    0,          f,  0,                        0,
-    0,          0,  (far + near)/(near - far), -1,
-    0,          0,  2*far*near/(near - far),   0,
-  ]);
-  const ry = t * 0.7, rx = t * 0.4;
-  const cy = Math.cos(ry), sy = Math.sin(ry);
-  const cx = Math.cos(rx), sx = Math.sin(rx);
-  const rotY = new Float32Array([ cy, 0, sy, 0, 0, 1, 0, 0, -sy, 0, cy, 0, 0, 0, -4, 1 ]);
-  const rotX = new Float32Array([ 1, 0, 0, 0, 0, cx, -sx, 0, 0, sx, cx, 0, 0, 0, 0, 1 ]);
-  return mat4Mul(mat4Mul(persp, rotX), rotY);
-}
+  const projectionMatrix = mat4.create();
+  mat4.perspective(projectionMatrix, Math.PI / 4, aspect, 0.1, 100.0);
 
-function mat4Mul(a: Float32Array, b: Float32Array): Float32Array {
-  const out = new Float32Array(16);
-  for (let c = 0; c < 4; c++) {
-    for (let r = 0; r < 4; r++) {
-      let sum = 0;
-      for (let k = 0; k < 4; k++) sum += a[k * 4 + r] * b[c * 4 + k];
-      out[c * 4 + r] = sum;
-    }
-  }
-  return out;
+  const viewMatrix = mat4.create();
+  mat4.lookAt(viewMatrix, [0, 2, 5], [0, 0, 0], [0, 1, 0]);
+
+  const modelMatrix = mat4.create();
+  mat4.rotate(modelMatrix, modelMatrix, t * 0.7, [0, 1, 0]);
+  mat4.rotate(modelMatrix, modelMatrix, t * 0.4, [1, 0, 0]);
+
+  const mvpMatrix = mat4.create();
+  mat4.multiply(mvpMatrix, projectionMatrix, viewMatrix);
+  mat4.multiply(mvpMatrix, mvpMatrix, modelMatrix);
+
+  return mvpMatrix as Float32Array;
 }
