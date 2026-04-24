@@ -72,6 +72,12 @@ export const Color = {
 // Theme
 // ─────────────────────────────────────────────────────────────────────────────
 
+export enum LayoutMode {
+  FREEFORM = 'Freeform',
+  MAX_1 = 'Max 1',
+  MAX_2 = 'Max 2'
+}
+
 export interface Theme {
   // Surfaces
   bg:             Color;

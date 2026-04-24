@@ -1,8 +1,8 @@
 import Konva from 'konva';
 import { Ui } from './ui';
-import { Color, Theme, Rect } from './types';
-import { VelLabel, VelContainer, VelButton } from './widget/widgets';
-import { VelWindow } from './widget/window';
+import { Color, Theme, Rect, LayoutMode } from './types';
+import { VelLabel, VelContainer, VelButton, VelDropdown } from './widget/widgets';
+import { MINI_H, VelWindow } from './widget/window';
 import { AppManager } from '../sdk/app-manager';
 import { globalRegistry } from '../sdk/registry';
 import type { UINode, AppId } from '../sdk/types';
@@ -17,9 +17,10 @@ export class StatusBar extends Konva.Group {
   private timeLabel: VelLabel;
   private weatherLabel: VelLabel;
   private startBtn: VelButton;
+  private layoutDropdown: VelDropdown;
   private timer: any;
 
-  constructor(width: number, height: number, theme: Theme, onStartClick: () => void) {
+  constructor(width: number, height: number, theme: Theme, onStartClick: () => void, onLayoutChange: (mode: LayoutMode) => void) {
     super();
 
     // notifications bar
@@ -48,6 +49,13 @@ export class StatusBar extends Konva.Group {
     this.startBtn.rect.cornerRadius(25);
     this.startBtn.on('click tap', onStartClick);
     this.add(this.startBtn);
+
+    // Layout Dropdown
+    this.layoutDropdown = new VelDropdown('Layout: Freeform', [LayoutMode.FREEFORM, LayoutMode.MAX_1, LayoutMode.MAX_2], { x: 20, y: 10, w: 150, h: height }, theme, (mode) => {
+      this.layoutDropdown.setLabel(`Layout: ${mode}`);
+      onLayoutChange(mode as LayoutMode);
+    });
+    this.add(this.layoutDropdown);
 
     // time and weather
     this.timeLabel = new VelLabel('', { x: width - 125, y: 15, w: 100, h: height }, { ...theme, fontSize: 20 });
@@ -200,6 +208,7 @@ export class Shell {
   private statusBar: StatusBar;
   private wallpaper?: Konva.Rect;
   private bridge: UIBridge;
+  private layoutMode: LayoutMode = LayoutMode.FREEFORM;
 
   constructor(ui: Ui) {
     this.ui = ui;
@@ -218,6 +227,8 @@ export class Shell {
     // 2. Status Bar
     this.statusBar = new StatusBar(this.ui.width, 32, this.ui.theme, () => {
       console.log('Start menu clicked');
+    }, (mode) => {
+      this.setLayoutMode(mode);
     });
     this.statusLayer.add(this.statusBar);
 
@@ -225,6 +236,72 @@ export class Shell {
     this.setWallpaper(Color.toCss(this.ui.theme.bg));
 
     window.addEventListener('resize', () => this.onResize());
+
+    // Listen for window interactions to re-apply layout if needed
+    this.windowLayer.on('mousedown touchstart', (e) => {
+      const win = e.target.findAncestor('.vel-window') as VelWindow;
+      if (win) {
+        // Delay to allow moveToTop and other logic to complete
+        setTimeout(() => this.applyLayout(), 0);
+      }
+    });
+  }
+
+  setLayoutMode(mode: LayoutMode) {
+    this.layoutMode = mode;
+    this.applyLayout();
+  }
+
+  applyLayout() {
+    const windows = (this.windowLayer.getChildren().filter(c => c.name() === 'vel-window') as VelWindow[])
+      .filter(w => !w.isMinimised);
+      
+    if (this.layoutMode === LayoutMode.FREEFORM) {
+      windows.forEach(w => w.restoreManualSize(this.ui.theme));
+      this.render();
+      return;
+    }
+
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+    const statusH = 32 + 30; // including margin
+    const margin = 10;
+    const availableH = screenH - statusH - margin - MINI_H - 30;
+    const topY = statusH;
+
+    // Sort by Z-index (last is top)
+    const sortedWindows = [...windows].sort((a, b) => b.zIndex() - a.zIndex());
+
+    if (this.layoutMode === LayoutMode.MAX_1) {
+      sortedWindows.forEach((w, i) => {
+        if (i === 0) {
+          w.draggable(false);
+          w.position({ x: margin, y: topY });
+          w.resize(screenW - margin * 2, availableH, this.ui.theme);
+        } else {
+          // Minimise others if they are not already
+          w.minimise(this.ui.theme);
+        }
+      });
+    } else if (this.layoutMode === LayoutMode.MAX_2) {
+      const count = Math.min(sortedWindows.length, 2);
+      const winW = (screenW - margin * (count + 1)) / count;
+      
+      sortedWindows.forEach((w, i) => {
+        if (i < 2) {
+          w.draggable(false);
+          // Top-most (index 0) goes to the right or left? 
+          // Let's say index 0 is left, index 1 is right.
+          // Since it's interaction order, index 0 is the most recent.
+          w.position({ x: margin + i * (winW + margin), y: topY });
+          w.resize(winW, availableH, this.ui.theme);
+        } else {
+          w.minimise(this.ui.theme);
+        }
+      });
+    }
+
+    this.render();
   }
 
   setWallpaper(colorOrUrl: string) {
@@ -256,12 +333,12 @@ export class Shell {
       this.wallpaper.height(h);
     }
     this.statusBar.setBarSize(w, 32);
-    this.render();
+    this.applyLayout();
   }
 
-  addWindow(win: Konva.Group) {
+  addWindow(win: VelWindow) {
     this.windowLayer.add(win);
-    this.windowLayer.batchDraw();
+    this.applyLayout();
   }
 
   render() {

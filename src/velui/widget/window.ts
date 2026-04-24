@@ -16,8 +16,8 @@ export interface WindowConfig {
   bridgeCanvas?: OffscreenCanvas | HTMLCanvasElement | null;
 }
 
-const MINI_W = 180;
-const MINI_H = 128;
+export const MINI_W = 180;
+export const MINI_H = 128;
 
 /**
  * VelWindow — a persistent Konva.Group representing a UI window.
@@ -32,7 +32,7 @@ export class VelWindow extends Konva.Group {
   readonly resizeHandle: Konva.Group;
 
   private _isMinimised = false;
-  private _originalRect: { x: number, y: number, w: number, h: number };
+  private _manualRect: { x: number, y: number, w: number, h: number };
 
   constructor(cfg: WindowConfig, theme: Theme) {
     super({
@@ -42,7 +42,7 @@ export class VelWindow extends Konva.Group {
       name:      'vel-window',
     });
 
-    this._originalRect = { x: cfg.x, y: cfg.y, w: cfg.width, h: cfg.height };
+    this._manualRect = { x: cfg.x, y: cfg.y, w: cfg.width, h: cfg.height };
 
     // 1. Shadow / Background
     this.background = new Konva.Rect({
@@ -182,6 +182,8 @@ export class VelWindow extends Konva.Group {
       const newH = Math.max(100, this.resizeHandle.y() + 20);
       
       this.resize(newW, newH, theme);
+      this._manualRect.w = newW;
+      this._manualRect.h = newH;
       
       // Reset handle position relative to window
       this.resizeHandle.x(this.background.width() - 20);
@@ -221,8 +223,8 @@ export class VelWindow extends Konva.Group {
 
     this.on('dragmove', () => {
       if (!this._isMinimised) {
-        this._originalRect.x = this.x();
-        this._originalRect.y = this.y();
+        this._manualRect.x = this.x();
+        this._manualRect.y = this.y();
       }
     });
 
@@ -239,9 +241,6 @@ export class VelWindow extends Konva.Group {
     if (this._isMinimised) return;
     this._isMinimised = true;
 
-    // Save current rect
-    this._originalRect = { x: this.x(), y: this.y(), w: this.background.width(), h: this.background.height() };
-
     const stage = this.getStage();
     if (!stage) return;
 
@@ -255,8 +254,8 @@ export class VelWindow extends Konva.Group {
     this.titleBar.visible(false);
 
     // Scale content to fit
-    const scaleX = MINI_W / this._originalRect.w;
-    const scaleY = MINI_H / (this._originalRect.h - theme.titleBarHeight);
+    const scaleX = MINI_W / this._manualRect.w;
+    const scaleY = MINI_H / (this._manualRect.h - theme.titleBarHeight);
     const scale = Math.min(scaleX, scaleY);
 
     this.contentArea.scale({ x: scale, y: scale });
@@ -280,20 +279,23 @@ export class VelWindow extends Konva.Group {
     this.contentArea.scale({ x: 1, y: 1 });
     this.contentArea.position({ x: 1, y: theme.titleBarHeight });
 
-    this.background.width(this._originalRect.w);
-    this.background.height(this._originalRect.h);
+    this.background.width(this._manualRect.w);
+    this.background.height(this._manualRect.h);
     this.background.fill(Color.toCss(theme.surface));
 
-    this.position({ x: this._originalRect.x, y: this._originalRect.y });
+    this.position({ x: this._manualRect.x, y: this._manualRect.y });
     this.getLayer()?.batchDraw();
     
     this.realignMinimizedWindows();
   }
 
-  resize(w: number, h: number, theme: Theme) {
-    this._originalRect.w = w;
-    this._originalRect.h = h;
+  restoreManualSize(theme: Theme) {
+    this.draggable(true);
+    this.resize(this._manualRect.w, this._manualRect.h, theme);
+    this.position({ x: this._manualRect.x, y: this._manualRect.y });
+  }
 
+  resize(w: number, h: number, theme: Theme) {
     this.background.width(w);
     this.background.height(h);
 

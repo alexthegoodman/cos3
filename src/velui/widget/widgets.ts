@@ -123,6 +123,68 @@ export class VelTabs extends Konva.Group {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Dropdown
+// ─────────────────────────────────────────────────────────────────────────────
+
+export class VelDropdown extends Konva.Group {
+  private optionsGroup: Konva.Group;
+  private mainButton: VelButton;
+  private isOpen: boolean = false;
+
+  constructor(label: string, options: string[], rect: Rect, theme: Theme, onSelect: (option: string) => void) {
+    super({ x: rect.x, y: rect.y });
+
+    this.mainButton = new VelButton(label, { x: 0, y: 0, w: rect.w, h: rect.h }, theme);
+    this.add(this.mainButton);
+
+    this.optionsGroup = new Konva.Group({
+      x: 0,
+      y: rect.h + 2,
+      visible: false,
+    });
+    this.add(this.optionsGroup);
+
+    options.forEach((opt, i) => {
+      const optBtn = new VelButton(opt, { x: 0, y: i * (rect.h + 1), w: rect.w, h: rect.h }, theme);
+      optBtn.on('click tap', () => {
+        onSelect(opt);
+        this.toggle(false);
+      });
+      this.optionsGroup.add(optBtn);
+    });
+
+    this.mainButton.on('click tap', (e) => {
+      e.cancelBubble = true;
+      this.toggle(!this.isOpen);
+    });
+
+    // Close when clicking elsewhere
+    this.on('added', () => {
+      const stage = this.getStage();
+      if (stage) {
+        stage.on('click tap', () => {
+          if (this.isOpen) this.toggle(false);
+        });
+      }
+    });
+  }
+
+  toggle(open: boolean) {
+    this.isOpen = open;
+    this.optionsGroup.visible(open);
+    if (open) {
+      this.moveToTop();
+    }
+    this.getLayer()?.batchDraw();
+  }
+
+  setLabel(text: string) {
+    this.mainButton.text.text(text);
+    this.getLayer()?.batchDraw();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Container
 // ─────────────────────────────────────────────────────────────────────────────
 

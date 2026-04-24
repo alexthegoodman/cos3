@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "vite build",
-    "dev:ui": "vite",
+    "dev:ui": "vite --host",
     "dev:api": "tsx watch ./api/index.ts --tsconfig tsconfig.api.json",
     "postinstall": "prisma generate"
   },
