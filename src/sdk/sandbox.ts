@@ -218,19 +218,19 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- util ----
     const util = vm.newObject();
-    this._addFn(util, "generateUUID", () =>
+    this._addFn(util, "generateUUID", (_thisH) =>
       vm.newString(generateUUID())
     );
-    this._addFn(util, "now", () => vm.newNumber(Date.now()));
+    this._addFn(util, "now", (_thisH) => vm.newNumber(Date.now()));
     vm.setProp(cos3, "util", util);
     util.dispose();
 
     // ---- window ----
     const win = vm.newObject();
-    this._addFn(win, "getSize", () =>
+    this._addFn(win, "getSize", (_thisH) =>
       vm.newString(JSON.stringify(this.host.window.getSize()))
     );
-    this._addFn(win, "notify", (titleH, bodyH) => {
+    this._addFn(win, "notify", (_thisH, titleH, bodyH) => {
       const title = vm.getString(titleH);
       const body = vm.getString(bodyH);
       this.host.window.requestNotification(title, body);
@@ -241,13 +241,13 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- lifecycle ----
     const lc = vm.newObject();
-    this._addFn(lc, "on", (eventH, handlerH) => {
+    this._addFn(lc, "on", (_thisH, eventH, handlerH) => {
       const event = vm.getString(eventH);
       const handler = handlerH.dup(); // take ownership
       this.lifecycleHandlers.set(event, handler);
       return vm.undefined;
     });
-    this._addFn(lc, "emit", (nameH, payloadH) => {
+    this._addFn(lc, "emit", (_thisH, nameH, payloadH) => {
       const name = vm.getString(nameH);
       const payload = JSON.parse(vm.getString(payloadH));
       this.emit("appEvent", { appId: this.appId, name, payload });
@@ -258,7 +258,7 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- input ----
     const input = vm.newObject();
-    const addInputListener = (typeH: QuickJSHandle, handlerH: QuickJSHandle) => {
+    const addInputListener = (_thisH: QuickJSHandle, typeH: QuickJSHandle, handlerH: QuickJSHandle) => {
       const type = vm.getString(typeH);
       if (!this.eventHandlers.has(type)) {
         this.eventHandlers.set(type, new Set());
@@ -274,22 +274,22 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- graphics ----
     const gfx = vm.newObject();
-    this._addFn(gfx, "createBuffer", (descH) => {
+    this._addFn(gfx, "createBuffer", (_thisH, descH) => {
       const desc = vm.dump(descH) as BufferDescriptor;
       const id = this.host.graphics.createBuffer(desc);
       return vm.newString(id);
     });
-    this._addFn(gfx, "createTexture", (descH) => {
+    this._addFn(gfx, "createTexture", (_thisH, descH) => {
       const desc = vm.dump(descH) as TextureDescriptor;
       const id = this.host.graphics.createTexture(desc);
       return vm.newString(id);
     });
-    this._addFn(gfx, "createPipeline", (cfgH) => {
+    this._addFn(gfx, "createPipeline", (_thisH, cfgH) => {
       const cfg = vm.dump(cfgH) as PipelineConfig;
       const id = this.host.graphics.createPipeline(cfg);
       return vm.newString(id);
     });
-    this._addFn(gfx, "dispatchCompute", (pidH, xH, yH, zH) => {
+    this._addFn(gfx, "dispatchCompute", (_thisH, pidH, xH, yH, zH) => {
       const pid = vm.getString(pidH);
       const x = vm.getNumber(xH);
       const y = vm.getNumber(yH);
@@ -297,17 +297,15 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
       this.host.graphics.dispatchCompute(pid, x, y, z);
       return vm.undefined;
     });
-    this._addFn(gfx, "createMesh", (descH) => {
+    this._addFn(gfx, "createMesh", (_thisH, descH) => {
       const desc = vm.dump(descH) as any;
-      // Handle the case where vertices might be a dumped object/array
-      // For the demo, we'll assume the app might pass a regular array or we'll convert it
       const vertices = Array.isArray(desc.vertices) ? new Float32Array(desc.vertices) : desc.vertices;
       const indices = Array.isArray(desc.indices) ? new Uint16Array(desc.indices) : desc.indices;
       
       const id = this.host.graphics.createMesh({ ...desc, vertices, indices });
       return vm.newString(id);
     });
-    this._addFn(gfx, "createLight", (descH) => {
+    this._addFn(gfx, "createLight", (_thisH, descH) => {
       const desc = vm.dump(descH) as LightDescriptor;
       const id = this.host.graphics.createLight(desc);
       return vm.newString(id);
@@ -317,16 +315,16 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- audio ----
     const audio = vm.newObject();
-    this._addFn(audio, "play", (optsH) => {
+    this._addFn(audio, "play", (_thisH, optsH) => {
       const opts = vm.dump(optsH) as AudioPlayOptions;
       const id = this.host.audio.play(opts);
       return vm.newString(id);
     });
-    this._addFn(audio, "stop", (idH) => {
+    this._addFn(audio, "stop", (_thisH, idH) => {
       this.host.audio.stop(vm.getString(idH));
       return vm.undefined;
     });
-    this._addFn(audio, "setVolume", (idH, volH) => {
+    this._addFn(audio, "setVolume", (_thisH, idH, volH) => {
       this.host.audio.setVolume(vm.getString(idH), vm.getNumber(volH));
       return vm.undefined;
     });
@@ -335,8 +333,7 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- ui ----
     const ui = vm.newObject();
-    this._addFn(ui, "render", (nodeH) => {
-      // Use dump for the UI tree as well
+    this._addFn(ui, "render", (_thisH, nodeH) => {
       const node = vm.dump(nodeH) as UINode;
       this.host.ui.renderUITree(this.appId, node);
       return vm.undefined;
@@ -346,16 +343,16 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- interop ----
     const interop = vm.newObject();
-    this._addFn(interop, "listRegistry", () =>
+    this._addFn(interop, "listRegistry", (_thisH) =>
       vm.newString(JSON.stringify(this.registry.toSnapshot()))
     );
-    this._addFn(interop, "registerRenderer", (nameH, backendH) => {
+    this._addFn(interop, "registerRenderer", (_thisH, nameH, backendH) => {
       const name = vm.getString(nameH);
       const backend = vm.getString(backendH);
       this.registry.registerRenderer(this.appId, name, backend as any, () => {}); 
       return vm.undefined;
     });
-    this._addFn(interop, "registerSharedFunction", (nameH) => {
+    this._addFn(interop, "registerSharedFunction", (_thisH, nameH) => {
       const name = vm.getString(nameH);
       this.registry.registerSharedFunction(this.appId, name, async (...args: any[]) => {
         const result = this.callExport(name, ...args);
@@ -363,15 +360,13 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
       });
       return vm.undefined;
     });
-    this._addFn(interop, "callSharedFunction", (appIdH, nameH, argsH) => {
-      // Use dump for args
+    this._addFn(interop, "callSharedFunction", (_thisH, appIdH, nameH, argsH) => {
       const targetApp = vm.getString(appIdH);
       const fnName = vm.getString(nameH);
       const args = vm.dump(argsH) as any[];
       this.registry
         .callSharedFunction(targetApp, fnName, ...args)
         .then((result) => {
-          // Re-enter with result via a synthetic call
           const resultCode = `typeof __cos3_sfcb_${fnName} === 'function' && __cos3_sfcb_${fnName}(${JSON.stringify(result)})`;
           this.vm.evalCode(resultCode).error?.dispose();
         })

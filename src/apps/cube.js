@@ -16,16 +16,16 @@ const fragmentShader = `
   @fragment fn fs(in: VsOut) -> @location(0) vec4f { return vec4f(in.col, 1.0); }
 `;
 
-// Initialize Resources
+// Initialize Resources using plain arrays for reliable marshaling
 const meshId = COS3.graphics.createMesh({
-  vertices: new Float32Array([
+  vertices: [
     -1,-1, 1,  1,-1, 1,  1, 1, 1,  1, 1, 1, -1, 1, 1, -1,-1, 1,
     -1,-1,-1, -1, 1,-1,  1, 1,-1,  1, 1,-1,  1,-1,-1, -1,-1,-1,
     -1, 1, 1,  1, 1, 1,  1, 1,-1,  1, 1,-1, -1, 1,-1, -1, 1, 1,
     -1,-1,-1,  1,-1,-1,  1,-1, 1,  1,-1, 1, -1,-1, 1, -1,-1,-1,
      1,-1, 1,  1,-1,-1,  1, 1,-1,  1, 1,-1,  1, 1, 1,  1,-1, 1,
     -1,-1,-1, -1,-1, 1, -1, 1, 1, -1, 1, 1, -1, 1,-1, -1,-1,-1,
-  ])
+  ]
 });
 
 const pipelineId = COS3.graphics.createPipeline({
