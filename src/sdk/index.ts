@@ -159,4 +159,4 @@ export { AudioManager } from "./audio";
 export { InputRouter } from "./controls";
 
 // Graphics stub (replace with real implementation)
-export { GraphicsStub } from "./graphics";
+// export { GraphicsStub } from "./graphics";
