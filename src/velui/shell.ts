@@ -51,7 +51,7 @@ export class StatusBar extends Konva.Group {
     this.add(this.startBtn);
 
     // Layout Dropdown
-    this.layoutDropdown = new VelDropdown('Layout: Freeform', [LayoutMode.FREEFORM, LayoutMode.MAX_1, LayoutMode.MAX_2], { x: 20, y: 10, w: 150, h: height }, theme, (mode) => {
+    this.layoutDropdown = new VelDropdown('Layout: Freeform', [LayoutMode.FREEFORM, LayoutMode.MAX_1, LayoutMode.MAX_2], { x: 20, y: 10, w: 150, h: height }, { ...theme, accent: lightGray }, (mode) => {
       this.layoutDropdown.setLabel(`Layout: ${mode}`);
       onLayoutChange(mode as LayoutMode);
     });
