@@ -16,7 +16,18 @@ const fragmentShader = `
   @fragment fn fs(in: VsOut) -> @location(0) vec4f { return vec4f(in.col, 1.0); }
 `;
 
-// 1. Initialize Resources
+// // 1. Initialize Resources
+const pipelineId = COS3.graphics.createPipeline({
+  vertexShader, fragmentShader,
+  bindings: [{ group: 0, binding: 0, type: 'uniform', resource: 'mvp' }]
+});
+
+console.log('pipelineId:', pipelineId);
+
+const mvpId = COS3.graphics.createBuffer({ size: 64, usage: 64 });
+
+console.log('mvpId:', mvpId);
+
 const meshId = COS3.graphics.createMesh({
   vertices: [
     -1,-1, 1,  1,-1, 1,  1, 1, 1,  1, 1, 1, -1, 1, 1, -1,-1, 1,
@@ -28,12 +39,7 @@ const meshId = COS3.graphics.createMesh({
   ]
 });
 
-const pipelineId = COS3.graphics.createPipeline({
-  vertexShader, fragmentShader,
-  bindings: [{ group: 0, binding: 0, type: 'uniform', resource: 'mvp' }]
-});
-
-const mvpId = COS3.graphics.createBuffer({ size: 64, usage: 64 });
+console.log('meshId:', meshId);
 
 // 2. Register Shared Renderer Function
 COS3.interop.registerRenderer('cube-renderer', 'onRender', 'webgpu');
@@ -49,20 +55,20 @@ globalThis.onRender = (pass, params) => {
 let rotations = 0;
 
 function renderUI() {
-  UI.render(
-    UI.Window({ title: 'SDK Cube' },
-      UI.Container({ layout: 'column', gap: 10 },
-        UI.Text({ content: 'Dynamic Renderer Function!', size: 16 }),
-        UI.Image('gpu-scene', { renderer: 'cube.app::cube-renderer' }),
-        UI.Button('Interactions: ' + rotations, { onClick: 'onBtnClick' })
+  COS3.ui.render(
+    COS3.ui.Window({ title: 'SDK Cube' },
+      COS3.ui.Container({ layout: 'column', gap: 10 },
+        COS3.ui.Text({ content: 'Dynamic Renderer Function!', size: 16 }),
+        COS3.ui.Image('gpu-scene', { renderer: 'cube.app::cube-renderer' }),
+        COS3.ui.Button('Interactions: ' + rotations, { onClick: 'onBtnClick' })
       )
     )
   );
 }
 
-globalThis.onBtnClick = () => {
-  rotations++;
-  renderUI();
-};
+// globalThis.onBtnClick = () => {
+//   rotations++;
+//   renderUI();
+// };
 
 renderUI();

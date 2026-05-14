@@ -1,4 +1,4 @@
-// Star Field App — Fully SDK-Driven
+// Star Field App — Function-Based Renderer
 const { UI, COS3 } = globalThis;
 
 const vertexShader = `
@@ -15,11 +15,11 @@ const fragmentShader = `
   @fragment fn fs(in: VsOut) -> @location(0) vec4f { return vec4f(in.col, 1.0); }
 `;
 
-const particles = new Float32Array(1000 * 3);
+const particles = [];
 for (let i = 0; i < 1000; i++) {
-  particles[i * 3 + 0] = (Math.random() - 0.5) * 2;
-  particles[i * 3 + 1] = (Math.random() - 0.5) * 2;
-  particles[i * 3 + 2] = (Math.random() - 0.5) * 2;
+  particles.push((Math.random() - 0.5) * 2);
+  particles.push((Math.random() - 0.5) * 2);
+  particles.push((Math.random() - 0.5) * 2);
 }
 
 const meshId = COS3.graphics.createMesh({
@@ -34,13 +34,20 @@ const pipelineId = COS3.graphics.createPipeline({
 
 const mvpId = COS3.graphics.createBuffer({ size: 64, usage: 64 });
 
-COS3.interop.registerRenderer('star-renderer', 'webgpu');
+COS3.interop.registerRenderer('star-renderer', 'onRender', 'webgpu');
+
+globalThis.onRender = (pass, params) => {
+  pass.setPipeline(pipelineId);
+  pass.setMesh(meshId);
+  pass.setBuffer('mvp', mvpId);
+  pass.draw();
+};
 
 UI.render(
   UI.Window({ title: 'SDK Stars' },
     UI.Container({ layout: 'column', gap: 10 },
-      UI.Text({ content: '1,000 Points via SDK', size: 16 }),
-      UI.Image('gpu-scene', { renderer: 'star-renderer', pipeline: pipelineId, mesh: meshId, mvp: mvpId })
+      UI.Text({ content: 'Dynamic SDK Particles', size: 16 }),
+      UI.Image('gpu-scene', { renderer: 'particles.app::star-renderer' })
     )
   )
 );

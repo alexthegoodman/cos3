@@ -1,4 +1,4 @@
-// Grid World App — Fully SDK-Driven
+// Grid World App — Function-Based Renderer
 const { UI, COS3 } = globalThis;
 
 const vertexShader = `
@@ -21,10 +21,10 @@ const fragmentShader = `
 `;
 
 const meshId = COS3.graphics.createMesh({
-  vertices: new Float32Array([
+  vertices: [
     -1, 0, -1,  1, 0, -1,  1, 0,  1,
     -1, 0, -1,  1, 0,  1, -1, 0,  1,
-  ])
+  ]
 });
 
 const pipelineId = COS3.graphics.createPipeline({
@@ -34,13 +34,20 @@ const pipelineId = COS3.graphics.createPipeline({
 
 const mvpId = COS3.graphics.createBuffer({ size: 64, usage: 64 });
 
-COS3.interop.registerRenderer('grid-renderer', 'webgpu');
+COS3.interop.registerRenderer('grid-renderer', 'onRender', 'webgpu');
+
+globalThis.onRender = (pass, params) => {
+  pass.setPipeline(pipelineId);
+  pass.setMesh(meshId);
+  pass.setBuffer('mvp', mvpId);
+  pass.draw();
+};
 
 UI.render(
   UI.Window({ title: 'SDK Grid' },
     UI.Container({ layout: 'column', gap: 10 },
-      UI.Text({ content: 'Procedural Grid via SDK', size: 16 }),
-      UI.Image('gpu-scene', { renderer: 'grid-renderer', pipeline: pipelineId, mesh: meshId, mvp: mvpId })
+      UI.Text({ content: 'Shared Grid Function', size: 16 }),
+      UI.Image('gpu-scene', { renderer: 'plane.app::grid-renderer' })
     )
   )
 );

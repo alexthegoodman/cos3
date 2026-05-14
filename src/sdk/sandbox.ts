@@ -140,14 +140,22 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
       fn.dispose();
       return { ok: false, error: `Export "${name}" is not a function` };
     }
-    const qjsArgs = args.map((a) => this.vm.newString(JSON.stringify(a)));
+    
+    const qjsArgs = args.map((a) => {
+      if (a && typeof a === 'object' && 'dispose' in a && typeof (a as any).dispose === 'function') {
+        return (a as QuickJSHandle).dup();
+      }
+      return this.vm.newString(JSON.stringify(a));
+    });
+
     const result = this.vm.callFunction(fn, global, ...qjsArgs);
     qjsArgs.forEach((h) => h.dispose());
     fn.dispose();
+
     if (result.error) {
       const err = this.vm.dump(result.error);
       result.error.dispose();
-      return { ok: false, error: String(err) };
+      return { ok: false, error: String(JSON.stringify(err)) };
     }
     const value = this.vm.dump(result.value);
     result.value.dispose();
@@ -216,24 +224,20 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     const vm = this.vm;
     const cos3 = vm.newObject();
 
+    const s = (h: QuickJSHandle) => vm.typeof(h) === 'string' ? vm.getString(h) : '';
+
     // ---- util ----
     const util = vm.newObject();
-    this._addFn(util, "generateUUID", (_thisH) =>
-      vm.newString(generateUUID())
-    );
-    this._addFn(util, "now", (_thisH) => vm.newNumber(Date.now()));
+    this._addFn(util, "generateUUID", () => vm.newString(generateUUID()));
+    this._addFn(util, "now", () => vm.newNumber(Date.now()));
     vm.setProp(cos3, "util", util);
     util.dispose();
 
     // ---- window ----
     const win = vm.newObject();
-    this._addFn(win, "getSize", (_thisH) =>
-      vm.newString(JSON.stringify(this.host.window.getSize()))
-    );
-    this._addFn(win, "notify", (_thisH, titleH, bodyH) => {
-      const title = vm.getString(titleH);
-      const body = vm.getString(bodyH);
-      this.host.window.requestNotification(title, body);
+    this._addFn(win, "getSize", () => vm.newString(JSON.stringify(this.host.window.getSize())));
+    this._addFn(win, "notify", (titleH, bodyH) => {
+      this.host.window.requestNotification(s(titleH), s(bodyH));
       return vm.undefined;
     });
     vm.setProp(cos3, "window", win);
@@ -241,16 +245,12 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- lifecycle ----
     const lc = vm.newObject();
-    this._addFn(lc, "on", (_thisH, eventH, handlerH) => {
-      const event = vm.getString(eventH);
-      const handler = handlerH.dup(); // take ownership
-      this.lifecycleHandlers.set(event, handler);
+    this._addFn(lc, "on", (eventH, handlerH) => {
+      this.lifecycleHandlers.set(s(eventH), handlerH.dup());
       return vm.undefined;
     });
-    this._addFn(lc, "emit", (_thisH, nameH, payloadH) => {
-      const name = vm.getString(nameH);
-      const payload = JSON.parse(vm.getString(payloadH));
-      this.emit("appEvent", { appId: this.appId, name, payload });
+    this._addFn(lc, "emit", (nameH, payloadH) => {
+      this.emit("appEvent", { appId: this.appId, name: s(nameH), payload: vm.dump(payloadH) });
       return vm.undefined;
     });
     vm.setProp(cos3, "lifecycle", lc);
@@ -258,11 +258,9 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- input ----
     const input = vm.newObject();
-    const addInputListener = (_thisH: QuickJSHandle, typeH: QuickJSHandle, handlerH: QuickJSHandle) => {
-      const type = vm.getString(typeH);
-      if (!this.eventHandlers.has(type)) {
-        this.eventHandlers.set(type, new Set());
-      }
+    const addInputListener = (_t: any, typeH: QuickJSHandle, handlerH: QuickJSHandle) => {
+      const type = s(typeH);
+      if (!this.eventHandlers.has(type)) this.eventHandlers.set(type, new Set());
       this.eventHandlers.get(type)!.add(handlerH.dup());
       return vm.undefined;
     };
@@ -274,68 +272,81 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- graphics ----
     const gfx = vm.newObject();
-    this._addFn(gfx, "createBuffer", (_thisH, descH) => {
-      const desc = vm.dump(descH) as BufferDescriptor;
-      const id = this.host.graphics.createBuffer(desc);
-      return vm.newString(id);
+    this._addFn(gfx, "createBuffer", (descH) => {
+      try {
+        const desc = vm.dump(descH) as BufferDescriptor;
+        if (!desc || typeof desc.size !== 'number') return vm.newString('error:invalid_desc');
+        return vm.newString(this.host.graphics.createBuffer(desc));
+      } catch (e) {
+        console.error('[COS3] createBuffer failed:', e);
+        throw e; // re-throw so the VM surfaces it properly
+      }
     });
-    this._addFn(gfx, "createTexture", (_thisH, descH) => {
-      const desc = vm.dump(descH) as TextureDescriptor;
-      const id = this.host.graphics.createTexture(desc);
-      return vm.newString(id);
+    this._addFn(gfx, "createTexture", (descH) => {
+      return vm.newString(this.host.graphics.createTexture(vm.dump(descH)));
     });
-    this._addFn(gfx, "createPipeline", (_thisH, cfgH) => {
-      const cfg = vm.dump(cfgH) as PipelineConfig;
-      const id = this.host.graphics.createPipeline(cfg);
-      return vm.newString(id);
+    // this._addFn(gfx, "createPipeline", (cfgH) => {
+    //   return vm.newString(this.host.graphics.createPipeline(vm.dump(cfgH)));
+    // });
+    // this._addFn(gfx, "createPipeline", (cfgH) => {
+    //   try {
+    //     return vm.newString(this.host.graphics.createPipeline(vm.dump(cfgH)));
+    //   } catch (e) {
+    //     console.error('[COS3] createPipeline failed:', e);
+    //     throw e; // re-throw so the VM surfaces it properly
+    //   }
+    // });
+    this._addFn(gfx, "createPipeline", (cfgH) => {
+      const cfg = vm.dump(cfgH); // dump synchronously before anything else
+      try {
+        return vm.newString(this.host.graphics.createPipeline(cfg));
+      } catch (e) {
+        console.error('[COS3] createPipeline failed:', e);
+        throw e;
+      }
     });
-    this._addFn(gfx, "dispatchCompute", (_thisH, pidH, xH, yH, zH) => {
-      const pid = vm.getString(pidH);
-      const x = vm.getNumber(xH);
-      const y = vm.getNumber(yH);
-      const z = vm.getNumber(zH);
-      this.host.graphics.dispatchCompute(pid, x, y, z);
+    this._addFn(gfx, "dispatchCompute", (pidH, xH, yH, zH) => {
+      this.host.graphics.dispatchCompute(s(pidH), vm.getNumber(xH), vm.getNumber(yH), vm.getNumber(zH));
       return vm.undefined;
     });
-    this._addFn(gfx, "createMesh", (_thisH, descH) => {
-      const desc = vm.dump(descH) as any;
-      const vertices = Array.isArray(desc.vertices) ? new Float32Array(desc.vertices) : desc.vertices;
-      const indices = Array.isArray(desc.indices) ? new Uint16Array(desc.indices) : desc.indices;
-      
-      const id = this.host.graphics.createMesh({ ...desc, vertices, indices });
-      return vm.newString(id);
+    // this._addFn(gfx, "createMesh", (descH) => {
+    //   const desc = vm.dump(descH) as any;
+    //   const vertices = Array.isArray(desc.vertices) ? new Float32Array(desc.vertices) : desc.vertices;
+    //   const indices = Array.isArray(desc.indices) ? new Uint16Array(desc.indices) : desc.indices;
+    //   return vm.newString(this.host.graphics.createMesh({ ...desc, vertices, indices }));
+    // });
+    this._addFn(gfx, "createMesh", (descH) => {
+      try {
+        const desc = vm.dump(descH) as any;
+        const vertices = Array.isArray(desc.vertices) ? new Float32Array(desc.vertices) : desc.vertices;
+        const indices = desc.indices != null
+          ? (Array.isArray(desc.indices) ? new Uint16Array(desc.indices) : desc.indices)
+          : undefined;
+        return vm.newString(this.host.graphics.createMesh({ ...desc, vertices, indices }));
+      } catch (e) {
+        // return vm.newString(`error:${(e as Error).message}`);
+        console.error('[COS3] createMesh failed:', e);
+        throw e; // re-throw so the VM surfaces it properly
+      }
     });
-    this._addFn(gfx, "createLight", (_thisH, descH) => {
-      const desc = vm.dump(descH) as LightDescriptor;
-      const id = this.host.graphics.createLight(desc);
-      return vm.newString(id);
+    this._addFn(gfx, "createLight", (descH) => {
+      return vm.newString(this.host.graphics.createLight(vm.dump(descH)));
     });
     vm.setProp(cos3, "graphics", gfx);
     gfx.dispose();
 
     // ---- audio ----
     const audio = vm.newObject();
-    this._addFn(audio, "play", (_thisH, optsH) => {
-      const opts = vm.dump(optsH) as AudioPlayOptions;
-      const id = this.host.audio.play(opts);
-      return vm.newString(id);
-    });
-    this._addFn(audio, "stop", (_thisH, idH) => {
-      this.host.audio.stop(vm.getString(idH));
-      return vm.undefined;
-    });
-    this._addFn(audio, "setVolume", (_thisH, idH, volH) => {
-      this.host.audio.setVolume(vm.getString(idH), vm.getNumber(volH));
-      return vm.undefined;
-    });
+    this._addFn(audio, "play", (optsH) => vm.newString(this.host.audio.play(vm.dump(optsH))));
+    this._addFn(audio, "stop", (idH) => { this.host.audio.stop(s(idH)); return vm.undefined; });
+    this._addFn(audio, "setVolume", (idH, volH) => { this.host.audio.setVolume(s(idH), vm.getNumber(volH)); return vm.undefined; });
     vm.setProp(cos3, "audio", audio);
     audio.dispose();
 
     // ---- ui ----
     const ui = vm.newObject();
-    this._addFn(ui, "render", (_thisH, nodeH) => {
-      const node = vm.dump(nodeH) as UINode;
-      this.host.ui.renderUITree(this.appId, node);
+    this._addFn(ui, "render", (nodeH) => {
+      this.host.ui.renderUITree(this.appId, vm.dump(nodeH));
       return vm.undefined;
     });
     vm.setProp(cos3, "ui", ui);
@@ -343,78 +354,76 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- interop ----
     const interop = vm.newObject();
-    this._addFn(interop, "listRegistry", (_thisH) =>
-      vm.newString(JSON.stringify(this.registry.toSnapshot()))
-    );
-    this._addFn(interop, "registerRenderer", (_thisH, nameH, handlerNameH, backendH) => {
-      const name = vm.getString(nameH);
-      const handlerName = vm.getString(handlerNameH);
-      const backend = vm.getString(backendH || vm.newString('webgpu'));
+    this._addFn(interop, "listRegistry", () => vm.newString(JSON.stringify(this.registry.toSnapshot())));
+    
+    // this._addFn(interop, "registerRenderer", (nameH, handlerNameH, backendH) => {
+    //   const name = s(nameH);
+    //   const handlerName = s(handlerNameH);
+    //   const backend = vm.typeof(backendH) === 'string' ? vm.getString(backendH) : 'webgpu';
 
-      this.registry.registerRenderer(this.appId, name, backend, async (target, params) => {
-        // target is the real GPURenderPassEncoder or Canvas2D
-        // params includes 'time', 'width', 'height'
-        
-        // 1. Create a "Pass" handle in the sandbox
-        const pass = vm.newObject();
-        const commands: any[] = [];
+    //   this.registry.registerRenderer(this.appId, name, backend, async (target, params) => {
+    //     const pass = vm.newObject();
+    //     const commands: any[] = [];
 
-        // In a real impl, we'd record these and play them back on the host thread.
-        // To keep it simple for the demo, we'll just buffer them in this call.
-        this._addFn(pass, "setPipeline", (_thisH, idH) => {
-          commands.push({ type: 'setPipeline', id: vm.getString(idH) });
-          return vm.undefined;
-        });
-        this._addFn(pass, "setMesh", (_thisH, idH) => {
-          commands.push({ type: 'setMesh', id: vm.getString(idH) });
-          return vm.undefined;
-        });
-        this._addFn(pass, "setBuffer", (_thisH, roleH, idH) => {
-          commands.push({ type: 'setBuffer', role: vm.getString(roleH), id: vm.getString(idH) });
-          return vm.undefined;
-        });
-        this._addFn(pass, "draw", (_thisH) => {
-          commands.push({ type: 'draw' });
-          return vm.undefined;
-        });
+    //     this._addFn(pass, "setPipeline", (idH) => { commands.push({ type: 'setPipeline', id: s(idH) }); return vm.undefined; });
+    //     this._addFn(pass, "setMesh", (idH) => { commands.push({ type: 'setMesh', id: s(idH) }); return vm.undefined; });
+    //     this._addFn(pass, "setBuffer", (roleH, idH) => { commands.push({ type: 'setBuffer', role: s(roleH), id: s(idH) }); return vm.undefined; });
+    //     this._addFn(pass, "draw", () => { commands.push({ type: 'draw' }); return vm.undefined; });
 
-        // 2. Call the guest handler
-        const result = this.callExport(handlerName, pass, params);
-        pass.dispose();
+    //     const result = this.callExport(handlerName, pass, params);
+    //     pass.dispose();
 
-        if (result.ok) {
-           // 3. Return the recorded commands to the host
-           return commands as any;
-        }
-      }); 
+    //     return result.ok ? commands : [];
+    //   }); 
+    //   return vm.undefined;
+    // });
+
+    this._addFn(interop, "registerRenderer", (nameH, handlerNameH, backendH) => {
+      try {
+        const name = s(nameH);
+        const handlerName = s(handlerNameH);
+        const backend = vm.typeof(backendH) === 'string' ? vm.getString(backendH) : 'webgpu';
+        this.registry.registerRenderer(this.appId, name, backend, async (target, params) => {
+          const pass = vm.newObject();
+          const commands: any[] = [];
+
+          this._addFn(pass, "setPipeline", (idH) => { commands.push({ type: 'setPipeline', id: s(idH) }); return vm.undefined; });
+          this._addFn(pass, "setMesh", (idH) => { commands.push({ type: 'setMesh', id: s(idH) }); return vm.undefined; });
+          this._addFn(pass, "setBuffer", (roleH, idH) => { commands.push({ type: 'setBuffer', role: s(roleH), id: s(idH) }); return vm.undefined; });
+          this._addFn(pass, "draw", () => { commands.push({ type: 'draw' }); return vm.undefined; });
+
+          const result = this.callExport(handlerName, pass, params);
+          pass.dispose();
+
+          return result.ok ? commands : [];
+        });
+      } catch (e) {
+        return vm.newString(`error:${(e as Error).message}`);
+      }
       return vm.undefined;
     });
-    this._addFn(interop, "registerSharedFunction", (_thisH, nameH) => {
-      const name = vm.getString(nameH);
+
+    this._addFn(interop, "registerSharedFunction", (nameH) => {
+      const name = s(nameH);
       this.registry.registerSharedFunction(this.appId, name, async (...args: any[]) => {
         const result = this.callExport(name, ...args);
         return result.ok ? result.value : Promise.reject(result.error);
       });
       return vm.undefined;
     });
-    this._addFn(interop, "callSharedFunction", (_thisH, appIdH, nameH, argsH) => {
-      const targetApp = vm.getString(appIdH);
-      const fnName = vm.getString(nameH);
+
+    this._addFn(interop, "callSharedFunction", (appIdH, nameH, argsH) => {
+      const targetApp = s(appIdH);
+      const fnName = s(nameH);
       const args = vm.dump(argsH) as any[];
-      this.registry
-        .callSharedFunction(targetApp, fnName, ...args)
-        .then((result) => {
-          const resultCode = `typeof __cos3_sfcb_${fnName} === 'function' && __cos3_sfcb_${fnName}(${JSON.stringify(result)})`;
-          this.vm.evalCode(resultCode).error?.dispose();
-        })
-        .catch((err) => {
-          this.emit("error", {
-            appId: this.appId,
-            message: String(err),
-          });
+      this.registry.callSharedFunction(targetApp, fnName, ...args)
+        .then((res) => {
+           const code = `typeof __cos3_sfcb_${fnName} === 'function' && __cos3_sfcb_${fnName}(${JSON.stringify(res)})`;
+           this.vm.evalCode(code).error?.dispose();
         });
       return vm.undefined;
     });
+
     vm.setProp(cos3, "interop", interop);
     interop.dispose();
 

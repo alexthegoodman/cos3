@@ -1,4 +1,4 @@
-// Pyramid Power App — Fully SDK-Driven
+// Pyramid Power App — Function-Based Renderer
 const { UI, COS3 } = globalThis;
 
 const vertexShader = `
@@ -17,16 +17,14 @@ const fragmentShader = `
 `;
 
 const meshId = COS3.graphics.createMesh({
-  vertices: new Float32Array([
-    // Base
+  vertices: [
     -1,-1,-1,  1,-1, 1,  1,-1,-1,
     -1,-1,-1, -1,-1, 1,  1,-1, 1,
-    // Sides
-     0, 1, 0,  1,-1, 1, -1,-1, 1, // front
-     0, 1, 0,  1,-1,-1,  1,-1, 1, // right
-     0, 1, 0, -1,-1,-1,  1,-1,-1, // back
-     0, 1, 0, -1,-1, 1, -1,-1,-1, // left
-  ])
+     0, 1, 0,  1,-1, 1, -1,-1, 1,
+     0, 1, 0,  1,-1,-1,  1,-1, 1,
+     0, 1, 0, -1,-1,-1,  1,-1,-1,
+     0, 1, 0, -1,-1, 1, -1,-1,-1,
+  ]
 });
 
 const pipelineId = COS3.graphics.createPipeline({
@@ -36,13 +34,20 @@ const pipelineId = COS3.graphics.createPipeline({
 
 const mvpId = COS3.graphics.createBuffer({ size: 64, usage: 64 });
 
-COS3.interop.registerRenderer('pyramid-renderer', 'webgpu');
+COS3.interop.registerRenderer('pyramid-renderer', 'onRender', 'webgpu');
+
+globalThis.onRender = (pass, params) => {
+  pass.setPipeline(pipelineId);
+  pass.setMesh(meshId);
+  pass.setBuffer('mvp', mvpId);
+  pass.draw();
+};
 
 UI.render(
   UI.Window({ title: 'SDK Pyramid' },
     UI.Container({ layout: 'column', gap: 10 },
-      UI.Text({ content: 'Autonomous Pyramid Render', size: 16 }),
-      UI.Image('gpu-scene', { renderer: 'pyramid-renderer', pipeline: pipelineId, mesh: meshId, mvp: mvpId })
+      UI.Text({ content: 'Autonomous Shared Renderer', size: 16 }),
+      UI.Image('gpu-scene', { renderer: 'pyramid.app::pyramid-renderer' })
     )
   )
 );
