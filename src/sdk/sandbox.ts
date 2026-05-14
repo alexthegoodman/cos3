@@ -345,8 +345,14 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
 
     // ---- ui ----
     const ui = vm.newObject();
+    // this._addFn(ui, "render", (nodeH) => {
+    //   this.host.ui.renderUITree(this.appId, vm.dump(nodeH));
+    //   return vm.undefined;
+    // });
     this._addFn(ui, "render", (nodeH) => {
-      this.host.ui.renderUITree(this.appId, vm.dump(nodeH));
+      const raw = vm.dump(nodeH);
+      const node = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      this.host.ui.renderUITree(this.appId, node);
       return vm.undefined;
     });
     vm.setProp(cos3, "ui", ui);
