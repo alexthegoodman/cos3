@@ -341,8 +341,7 @@ export class Shell {
       sortedWindows.forEach((w, i) => {
         if (i === 0) {
           w.draggable(false);
-          w.position({ x: margin, y: topY });
-          w.resize(screenW - margin * 2, availableH, this.ui.theme);
+          w.setLayoutRect(margin, topY, screenW - margin * 2, availableH);
         } else {
           // Minimise others if they are not already
           w.minimise(this.ui.theme);
@@ -355,11 +354,7 @@ export class Shell {
       sortedWindows.forEach((w, i) => {
         if (i < 2) {
           w.draggable(false);
-          // Top-most (index 0) goes to the right or left? 
-          // Let's say index 0 is left, index 1 is right.
-          // Since it's interaction order, index 0 is the most recent.
-          w.position({ x: margin + i * (winW + margin), y: topY });
-          w.resize(winW, availableH, this.ui.theme);
+          w.setLayoutRect(margin + i * (winW + margin), topY, winW, availableH);
         } else {
           w.minimise(this.ui.theme);
         }
@@ -404,6 +399,24 @@ export class Shell {
   addWindow(win: VelWindow) {
     this.windowLayer.add(win);
     this.applyLayout();
+  }
+
+  update(dt: number) {
+    let changed = false;
+    const windows = this.windowLayer.getChildren().filter(c => c.name() === 'vel-window') as VelWindow[];
+    windows.forEach(win => {
+      if (win.update(dt, this.ui.theme)) {
+        changed = true;
+      }
+    });
+
+    if (this.launcher?.update(dt)) {
+      this.overlayLayer.batchDraw();
+    }
+
+    if (changed) {
+      this.windowLayer.batchDraw();
+    }
   }
 
   render() {

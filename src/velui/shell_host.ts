@@ -155,9 +155,16 @@ export default async function main() {
   }
 
   const depthTexMap = new Map<string, GPUTexture>();
+  let lastTime = 0;
 
   async function frame(time: number) {
+    const dt = (time - (lastTime || time)) / 1000;
+    lastTime = time;
+
     const t = time / 1000;
+    
+    shell.update(dt);
+
     for (const win of bridge.getWindows()) {
        const gpuImages = win.find('.gpu-scene-image');
        for (const img of gpuImages) {

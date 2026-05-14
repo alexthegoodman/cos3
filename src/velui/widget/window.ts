@@ -1,6 +1,7 @@
 import Konva from 'konva';
 import type { Rect, Theme } from '../types';
 import { Color } from '../types';
+import { Spring } from '../anim';
 
 export interface WindowConfig {
   title:         string;
@@ -33,6 +34,15 @@ export class VelWindow extends Konva.Group {
 
   private _isMinimised = false;
   private _manualRect: { x: number, y: number, w: number, h: number };
+  
+  // Animation Springs
+  private springX: Spring;
+  private springY: Spring;
+  private springW: Spring;
+  private springH: Spring;
+  private springContentScale: Spring;
+  private springOpacity: Spring;
+
   onClose?: () => void;
 
   constructor(cfg: WindowConfig, theme: Theme) {
@@ -44,6 +54,23 @@ export class VelWindow extends Konva.Group {
     });
 
     this._manualRect = { x: cfg.x, y: cfg.y, w: cfg.width, h: cfg.height };
+
+    // Initialize Springs
+    this.springX = Spring.gentle(cfg.x);
+    this.springY = Spring.gentle(cfg.y);
+    this.springW = Spring.gentle(cfg.width);
+    this.springH = Spring.gentle(cfg.height);
+    this.springContentScale = Spring.gentle(0); // Start small for "launch" effect
+    this.springOpacity = Spring.gentle(0);
+
+    // Initial targets for entrance animation
+    this.springContentScale.snap(0.5);
+    this.springContentScale.value = 0.5;
+    this.springOpacity.value = 0;
+    
+    // Set final targets
+    this.springContentScale.update(1, 0); 
+    this.springOpacity.update(1, 0);
 
     // 1. Shadow / Background
     this.background = new Konva.Rect({
@@ -183,10 +210,14 @@ export class VelWindow extends Konva.Group {
       const newW = Math.max(200, this.resizeHandle.x() + 20);
       const newH = Math.max(100, this.resizeHandle.y() + 20);
       
-      this.resize(newW, newH, theme);
+      this.resizeImmediate(newW, newH, theme);
       this._manualRect.w = newW;
       this._manualRect.h = newH;
       
+      // Sync springs
+      this.springW.snap(newW);
+      this.springH.snap(newH);
+
       // Reset handle position relative to window
       this.resizeHandle.x(this.background.width() - 20);
       this.resizeHandle.y(this.background.height() - 20);
@@ -227,6 +258,8 @@ export class VelWindow extends Konva.Group {
       if (!this._isMinimised) {
         this._manualRect.x = this.x();
         this._manualRect.y = this.y();
+        this.springX.snap(this.x());
+        this.springY.snap(this.y());
       }
     });
 
@@ -239,36 +272,71 @@ export class VelWindow extends Konva.Group {
     });
   }
 
+  update(dt: number, theme: Theme): boolean {
+    let changed = false;
+
+    if (this._isMinimised) {
+      const stage = this.getStage();
+      if (stage) {
+        const windows = stage.find('.vel-window') as VelWindow[];
+        const minimised = windows.filter(w => w.isMinimised);
+        const myIndex = minimised.indexOf(this);
+        if (myIndex !== -1) {
+          const slotX = 16 + myIndex * (MINI_W + 8);
+          const slotY = stage.height() - MINI_H - 16;
+          changed = this.springX.update(slotX, dt) || changed;
+          changed = this.springY.update(slotY, dt) || changed;
+        }
+      }
+      changed = this.springW.update(MINI_W, dt) || changed;
+      changed = this.springH.update(MINI_H, dt) || changed;
+
+      // Scale content to fit
+      const scaleX = MINI_W / this._manualRect.w;
+      const scaleY = MINI_H / (this._manualRect.h - theme.titleBarHeight);
+      const scale = Math.min(scaleX, scaleY);
+      changed = this.springContentScale.update(scale, dt) || changed;
+    } else {
+      changed = this.springX.update(this._manualRect.x, dt) || changed;
+      changed = this.springY.update(this._manualRect.y, dt) || changed;
+      changed = this.springW.update(this._manualRect.w, dt) || changed;
+      changed = this.springH.update(this._manualRect.h, dt) || changed;
+      changed = this.springContentScale.update(1, dt) || changed;
+    }
+
+    changed = this.springOpacity.update(1, dt) || changed;
+
+    if (changed) {
+      this.x(this.springX.value);
+      this.y(this.springY.value);
+      this.opacity(this.springOpacity.value);
+      this.resizeImmediate(this.springW.value, this.springH.value, theme);
+
+      const s = this.springContentScale.value;
+      this.contentArea.scale({ x: s, y: s });
+      
+      if (this._isMinimised) {
+        this.contentArea.position({ 
+          x: (this.springW.value - this.contentArea.width() * s) / 2, 
+          y: (this.springH.value - this.contentArea.height() * s) / 2 
+        });
+      } else {
+        this.contentArea.position({ x: 1, y: theme.titleBarHeight });
+      }
+    }
+
+    return changed;
+  }
+
   minimise(theme: Theme) {
     if (this._isMinimised) return;
     this._isMinimised = true;
 
-    const stage = this.getStage();
-    if (!stage) return;
-
-    const windows = stage.find('.vel-window') as VelWindow[];
-    const minimised = windows.filter(w => w !== this && w.isMinimised);
-    const slotX = 16 + minimised.length * (MINI_W + 8);
-    const slotY = stage.height() - MINI_H - 16;
-
     // Hide decorations
     this.draggable(false);
     this.titleBar.visible(false);
-
-    // Scale content to fit
-    const scaleX = MINI_W / this._manualRect.w;
-    const scaleY = MINI_H / (this._manualRect.h - theme.titleBarHeight);
-    const scale = Math.min(scaleX, scaleY);
-
-    this.contentArea.scale({ x: scale, y: scale });
-    this.contentArea.position({ x: (MINI_W - this.contentArea.width() * scale) / 2, y: (MINI_H - this.contentArea.height() * scale) / 2 });
-
-    this.background.width(MINI_W);
-    this.background.height(MINI_H);
+    this.resizeHandle.visible(false);
     this.background.fill(Color.toCss(theme.surfaceRaised));
-    
-    this.position({ x: slotX, y: slotY });
-    this.getLayer()?.batchDraw();
   }
 
   restore(theme: Theme) {
@@ -277,27 +345,30 @@ export class VelWindow extends Konva.Group {
 
     this.draggable(true);
     this.titleBar.visible(true);
-    
-    this.contentArea.scale({ x: 1, y: 1 });
-    this.contentArea.position({ x: 1, y: theme.titleBarHeight });
-
-    this.background.width(this._manualRect.w);
-    this.background.height(this._manualRect.h);
+    this.resizeHandle.visible(true);
     this.background.fill(Color.toCss(theme.surface));
-
-    this.position({ x: this._manualRect.x, y: this._manualRect.y });
-    this.getLayer()?.batchDraw();
     
     this.realignMinimizedWindows();
   }
 
   restoreManualSize(theme: Theme) {
     this.draggable(true);
-    this.resize(this._manualRect.w, this._manualRect.h, theme);
-    this.position({ x: this._manualRect.x, y: this._manualRect.y });
+    this._isMinimised = false;
+    this.titleBar.visible(true);
+    this.resizeHandle.visible(true);
+    this.background.fill(Color.toCss(theme.surface));
+  }
+
+  setLayoutRect(x: number, y: number, w: number, h: number) {
+    this._manualRect = { x, y, w, h };
   }
 
   resize(w: number, h: number, theme: Theme) {
+    this._manualRect.w = w;
+    this._manualRect.h = h;
+  }
+
+  private resizeImmediate(w: number, h: number, theme: Theme) {
     this.background.width(w);
     this.background.height(h);
 
@@ -308,27 +379,25 @@ export class VelWindow extends Konva.Group {
     this.closeBtn.x(w - 20);
     this.miniBtn.x(w - 40);
 
-    this.contentArea.width(w - 2);
-    this.contentArea.height(h - theme.titleBarHeight - 1);
+    // We don't resize content area width/height here as it depends on scale
+    // but we update the logical size it should have when scale is 1
+    if (!this._isMinimised) {
+      this.contentArea.width(w - 2);
+      this.contentArea.height(h - theme.titleBarHeight - 1);
 
-    // Update content images if they exist
-    this.contentArea.find('Image').forEach((img: any) => {
-      img.width(this.contentArea.width());
-      img.height(this.contentArea.height());
-    });
+      // Update content images if they exist
+      this.contentArea.find('Image').forEach((img: any) => {
+        img.width(this.contentArea.width());
+        img.height(this.contentArea.height());
+      });
+    }
 
     this.resizeHandle.x(w - 20);
     this.resizeHandle.y(h - 20);
   }
 
   private realignMinimizedWindows() {
-    const stage = this.getStage();
-    if (!stage) return;
-    const minimised = (stage.find('.vel-window') as VelWindow[]).filter(w => w.isMinimised);
-    minimised.forEach((w, i) => {
-      w.position({ x: 16 + i * (MINI_W + 8), y: stage.height() - MINI_H - 16 });
-    });
-    this.getLayer()?.batchDraw();
+    // This is now handled in update()
   }
 
   get isMinimised() { return this._isMinimised; }
@@ -337,8 +406,8 @@ export class VelWindow extends Konva.Group {
     return {
       x: this.x() + this.contentArea.x(),
       y: this.y() + this.contentArea.y(),
-      w: this.contentArea.width(),
-      h: this.contentArea.height(),
+      w: this.contentArea.width() * this.contentArea.scaleX(),
+      h: this.contentArea.height() * this.contentArea.scaleY(),
     };
   }
 

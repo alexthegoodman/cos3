@@ -2,13 +2,18 @@ import Konva from 'konva';
 import { Color, Rect, Theme } from '../types';
 import { VelContainer, VelButton, VelLabel } from './widgets';
 import type { AppManifest } from '../../sdk/types';
+import { Spring } from '../anim';
 
 export class AppLauncher extends Konva.Group {
   private bg: VelContainer;
   private grid: Konva.Group;
+  private spring: Spring;
+  private _targetVisible = false;
 
   constructor(rect: Rect, theme: Theme, apps: AppManifest[], onLaunch: (appId: string) => void) {
-    super({ x: rect.x, y: rect.y, visible: false });
+    super({ x: rect.x, y: rect.y, visible: false, opacity: 0, scaleX: 0.9, scaleY: 0.9 });
+
+    this.spring = Spring.gentle(0);
 
     // Background with a bit of transparency
     this.bg = new VelContainer({ x: 0, y: 0, w: rect.w, h: rect.h }, theme, { raised: true });
@@ -60,22 +65,31 @@ export class AppLauncher extends Konva.Group {
     });
   }
 
-  toggle() {
-    this.visible(!this.visible());
-    if (this.visible()) {
-      this.moveToTop();
+  update(dt: number): boolean {
+    const changed = this.spring.update(this._targetVisible ? 1 : 0, dt);
+    if (changed || this.spring.value > 0) {
+      this.opacity(this.spring.value);
+      const s = 0.9 + 0.1 * this.spring.value;
+      this.scale({ x: s, y: s });
+      this.visible(this.spring.value > 0.01);
     }
-    this.getLayer()?.batchDraw();
+    return changed;
+  }
+
+  toggle() {
+    if (this._targetVisible) this.hide();
+    else this.show();
   }
 
   show() {
+    this._targetVisible = true;
     this.visible(true);
     this.moveToTop();
     this.getLayer()?.batchDraw();
   }
 
   hide() {
-    this.visible(false);
+    this._targetVisible = false;
     this.getLayer()?.batchDraw();
   }
 }
