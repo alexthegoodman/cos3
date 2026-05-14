@@ -55,12 +55,12 @@ globalThis.onRender = (pass, params) => {
 let rotations = 0;
 
 function renderUI() {
-  COS3.ui.render(
-    COS3.ui.Window({ title: 'SDK Cube' },
-      COS3.ui.Container({ layout: 'column', gap: 10 },
-        COS3.ui.Text({ content: 'Dynamic Renderer Function!', size: 16 }),
-        COS3.ui.Image('gpu-scene', { renderer: 'cube.app::cube-renderer' }),
-        COS3.ui.Button('Interactions: ' + rotations, { onClick: 'onBtnClick' })
+  UI.render(
+    UI.Window({ title: 'SDK Cube' },
+      UI.Container({ layout: 'column', gap: 10 },
+        UI.Text({ content: 'Dynamic Renderer Function!', size: 16 }),
+        UI.Image('gpu-scene', { renderer: 'cube.app::cube-renderer' }),
+        UI.Button('Interactions: ' + rotations, { onClick: 'onBtnClick' })
       )
     )
   );
