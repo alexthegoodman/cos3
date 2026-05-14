@@ -161,9 +161,11 @@ export default async function main() {
     for (const win of bridge.getWindows()) {
        const gpuImages = win.find('.gpu-scene-image');
        for (const img of gpuImages) {
-         const info = (img as any)._gpuBridge;
+         const info = (img as any)._gpuBridge; // contains canvas and ctx
          const props = img.getAttrs();
-         const rendererName = props.renderer; 
+         const rendererName = props.renderer;
+
+        //  console.info("gpu image", info, rendererName)
          
          if (info && rendererName) {
            if (info.canvas.width !== Math.floor(img.width()) || info.canvas.height !== Math.floor(img.height())) {
@@ -173,6 +175,7 @@ export default async function main() {
            const [appId, name] = rendererName.split('::');
            const renderer = globalRegistry.getRenderer(appId, name);
            if (renderer) {
+            // console.info("got renderer", appId)
              const params = { time: t, width: info.canvas.width, height: info.canvas.height, ...props };
              const commands = await renderer.render(info.ctx, params) as any;
              

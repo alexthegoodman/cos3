@@ -197,7 +197,8 @@ export class UIBridge {
              y: layout.y,
              width: layout.w,
              height: layout.h,
-             name: 'gpu-scene-image'
+             name: 'gpu-scene-image',
+             renderer: props.renderer,
            });
            parent.add(img);
            
