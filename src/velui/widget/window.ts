@@ -33,6 +33,7 @@ export class VelWindow extends Konva.Group {
 
   private _isMinimised = false;
   private _manualRect: { x: number, y: number, w: number, h: number };
+  onClose?: () => void;
 
   constructor(cfg: WindowConfig, theme: Theme) {
     super({
@@ -97,6 +98,7 @@ export class VelWindow extends Konva.Group {
     });
     this.closeBtn.on('click tap', (e) => {
       e.cancelBubble = true;
+      this.onClose?.();
       this.destroy();
     });
     this.titleBar.add(this.closeBtn);

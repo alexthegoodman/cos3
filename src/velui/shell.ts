@@ -133,6 +133,12 @@ export class UIBridge {
         width,
         height,
       }, this.shell.ui.theme);
+      
+      win.onClose = () => {
+        this.windows.delete(appId);
+        this.shell.onWindowClosed(appId);
+      };
+
       this.shell.addWindow(win);
       this.windows.set(appId, win);
     }
@@ -263,6 +269,13 @@ export class Shell {
     this.wallpaperLayer.on('mousedown touchstart', () => {
       this.launcher?.hide();
     });
+  }
+
+  onWindowClosed(appId: AppId) {
+    if (this.appManager?.isRunning(appId)) {
+      this.appManager.terminateApp(appId);
+    }
+    this.applyLayout();
   }
 
   setAppManager(manager: AppManager, launchCallback: (appId: AppId) => void) {
