@@ -87,19 +87,21 @@ export default async function main() {
     { id: 'particles.app', name: 'Star Field', scene: 'particles', desc: '1,000 floating points' },
   ];
 
-  for (let i = 0; i < apps.length; i++) {
-    const app = apps[i];
+  for (const app of apps) {
     manager.registerApp({
       id: app.id,
       name: app.name,
       version: '1.0.0'
     });
-    
-    // Staggered launch
-    setTimeout(async () => {
-      await manager.launchApp(app.id, GUEST_UI_SCRIPT + createAppScript(app.name, app.scene, app.desc));
-    }, i * 500);
   }
+
+  // Connect Shell to AppManager
+  shell.setAppManager(manager, async (appId) => {
+    const app = apps.find(a => a.id === appId);
+    if (app && !manager.isRunning(appId)) {
+      await manager.launchApp(app.id, GUEST_UI_SCRIPT + createAppScript(app.name, app.scene, app.desc));
+    }
+  });
 
   // 4. Main Render Loop
   async function frame(time: number) {

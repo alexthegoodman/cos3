@@ -3,6 +3,7 @@ import { Ui } from './ui';
 import { Color, Theme, Rect, LayoutMode } from './types';
 import { VelLabel, VelContainer, VelButton, VelDropdown } from './widget/widgets';
 import { MINI_H, VelWindow } from './widget/window';
+import { AppLauncher } from './widget/launcher';
 import { AppManager } from '../sdk/app-manager';
 import { globalRegistry } from '../sdk/registry';
 import type { UINode, AppId } from '../sdk/types';
@@ -17,6 +18,7 @@ export class StatusBar extends Konva.Group {
   private timeLabel: VelLabel;
   private weatherLabel: VelLabel;
   private startBtn: VelButton;
+  private notifBtn: VelButton;
   private layoutDropdown: VelDropdown;
   private timer: any;
 
@@ -24,31 +26,37 @@ export class StatusBar extends Konva.Group {
     super();
 
     // notifications bar
-    this.bg = new VelContainer({ x: (width / 2) - 100, y: 10, w: 200, h: height }, theme, { raised: true });
+    this.bg = new VelContainer({ x: (width / 2) - 70, y: 10, w: 200, h: height }, theme, { raised: true });
     this.bg.cornerRadius(25);
     this.add(this.bg);
 
-    let lightGray = { r: 70, g: 70, b: 70, a: 255 };
-
-    this.startBtn = new VelButton('x', {  x: (width / 2) - 60, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    // center dock buttons
+    const lightGray = { r: 70, g: 70, b: 70, a: 255 };
+    const dockX = (width / 2);
+    this.startBtn = new VelButton('Apps', {  x: dockX - 175, y: 14, w: 90, h: height - 8 }, { ...theme, accent: lightGray });
     this.startBtn.rect.cornerRadius(25);
     this.startBtn.on('click tap', onStartClick);
     this.add(this.startBtn);
 
-    this.startBtn = new VelButton('x', {  x: (width / 2) - 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
-    this.startBtn.rect.cornerRadius(25);
-    this.startBtn.on('click tap', onStartClick);
-    this.add(this.startBtn);
+    this.notifBtn = new VelButton('x', {  x: (width / 2) - 60, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn.rect.cornerRadius(25);
+    this.notifBtn.on('click tap', onStartClick);
+    this.add(this.notifBtn);
 
-    this.startBtn = new VelButton('x', {  x: (width / 2), y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
-    this.startBtn.rect.cornerRadius(25);
-    this.startBtn.on('click tap', onStartClick);
-    this.add(this.startBtn);
+    this.notifBtn = new VelButton('x', {  x: (width / 2) - 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn.rect.cornerRadius(25);
+    this.notifBtn.on('click tap', onStartClick);
+    this.add(this.notifBtn);
 
-    this.startBtn = new VelButton('x', {  x: (width / 2) + 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
-    this.startBtn.rect.cornerRadius(25);
-    this.startBtn.on('click tap', onStartClick);
-    this.add(this.startBtn);
+    this.notifBtn = new VelButton('x', {  x: (width / 2), y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn.rect.cornerRadius(25);
+    this.notifBtn.on('click tap', onStartClick);
+    this.add(this.notifBtn);
+
+    this.notifBtn = new VelButton('x', {  x: (width / 2) + 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn.rect.cornerRadius(25);
+    this.notifBtn.on('click tap', onStartClick);
+    this.add(this.notifBtn);
 
     // Layout Dropdown
     this.layoutDropdown = new VelDropdown('Layout: Freeform', [LayoutMode.FREEFORM, LayoutMode.MAX_1, LayoutMode.MAX_2], { x: 20, y: 10, w: 150, h: height }, { ...theme, accent: lightGray }, (mode) => {
@@ -204,11 +212,14 @@ export class Shell {
   readonly wallpaperLayer: Konva.Layer;
   readonly windowLayer: Konva.Layer;
   readonly statusLayer: Konva.Layer;
+  readonly overlayLayer: Konva.Layer;
   
   private statusBar: StatusBar;
+  private launcher?: AppLauncher;
   private wallpaper?: Konva.Rect;
   private bridge: UIBridge;
   private layoutMode: LayoutMode = LayoutMode.FREEFORM;
+  private appManager?: AppManager;
 
   constructor(ui: Ui) {
     this.ui = ui;
@@ -218,15 +229,17 @@ export class Shell {
     this.wallpaperLayer = new Konva.Layer();
     this.windowLayer = new Konva.Layer();
     this.statusLayer = new Konva.Layer();
+    this.overlayLayer = new Konva.Layer();
 
     this.ui.stage.removeChildren();
     this.ui.stage.add(this.wallpaperLayer);
     this.ui.stage.add(this.windowLayer);
     this.ui.stage.add(this.statusLayer);
+    this.ui.stage.add(this.overlayLayer);
 
     // 2. Status Bar
     this.statusBar = new StatusBar(this.ui.width, 32, this.ui.theme, () => {
-      console.log('Start menu clicked');
+      this.launcher?.toggle();
     }, (mode) => {
       this.setLayoutMode(mode);
     });
@@ -245,6 +258,35 @@ export class Shell {
         setTimeout(() => this.applyLayout(), 0);
       }
     });
+
+    // Close launcher when clicking on wallpaper
+    this.wallpaperLayer.on('mousedown touchstart', () => {
+      this.launcher?.hide();
+    });
+  }
+
+  setAppManager(manager: AppManager, launchCallback: (appId: AppId) => void) {
+    this.appManager = manager;
+    
+    // Create launcher
+    const launcherW = Math.min(600, this.ui.width - 40);
+    const launcherH = Math.min(400, this.ui.height - 100);
+    
+    this.launcher = new AppLauncher(
+      { 
+        x: (this.ui.width - launcherW) / 2, 
+        y: 60, 
+        w: launcherW, 
+        h: launcherH 
+      }, 
+      this.ui.theme, 
+      manager.listApps(),
+      (appId) => {
+        launchCallback(appId);
+        this.launcher?.hide();
+      }
+    );
+    this.overlayLayer.add(this.launcher);
   }
 
   setLayoutMode(mode: LayoutMode) {
@@ -345,6 +387,7 @@ export class Shell {
     this.wallpaperLayer.batchDraw();
     this.windowLayer.batchDraw();
     this.statusLayer.batchDraw();
+    this.overlayLayer.batchDraw();
   }
 
   getUIBridge() {
