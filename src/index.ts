@@ -1,4 +1,4 @@
-import appShellDemo from "./velui/examples/app_shell";
+import startAppShell from "./velui/shell_host";
 
 // ─────────────────────────────────────────────────────────────────────────────
-appShellDemo().catch(console.error);
+startAppShell().catch(console.error);

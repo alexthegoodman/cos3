@@ -1,9 +1,8 @@
-import { Ui, Shell } from '../index';
-import { AppManager } from '../../sdk/app-manager';
-import { globalRegistry } from '../../sdk/registry';
-import { GUEST_UI_SCRIPT } from '../../sdk/spec';
-import { CubeScene, PyramidScene, PlaneScene, ParticleScene } from './scenes';
-import type { SandboxHostAPIs } from '../../sdk/sandbox';
+import { Ui, Shell } from './index';
+import { AppManager } from '../sdk/app-manager';
+import { globalRegistry } from '../sdk/registry';
+import { GUEST_UI_SCRIPT } from '../sdk/spec';
+import type { SandboxHostAPIs } from '../sdk/sandbox';
 
 export default async function main() {
   const canvas = document.querySelector<HTMLCanvasElement>('#app')!;
@@ -116,7 +115,7 @@ export default async function main() {
 
   const manager = new AppManager({ host: hostAPIs });
 
-  // 2. Mocking actual script loading from src/apps/
+  // 2. Script loading from /src/apps/
   const APP_URLS: Record<string, string> = {
     'cube.app': './src/apps/cube.js',
     'pyramid.app': './src/apps/pyramid.js',
@@ -139,62 +138,21 @@ export default async function main() {
     if (!manager.isRunning(appId)) {
       const url = APP_URLS[appId];
       if (url) {
-        // In a real environment, we'd use fetch(url).
-        // For the demo, I'll simulate a fetch that resolves with the file content.
-        // I have access to these files as an agent, so I'll bake them in but structure it like a loader.
-        const script = await loadScript(url);
-        await manager.launchApp(appId, GUEST_UI_SCRIPT + script);
+        try {
+          const script = await loadScript(url);
+          await manager.launchApp(appId, GUEST_UI_SCRIPT + script);
+        } catch (err) {
+          console.error(`Failed to load app ${appId}:`, err);
+        }
       }
     }
   });
 
   async function loadScript(url: string): Promise<string> {
-    // This is where the actual fetch would happen.
-    // I'm providing the content directly to ensure the demo works immediately.
-    const scripts: any = {
-      './src/apps/cube.js': `
-        const { UI, COS3 } = globalThis;
-        let rotations = 0;
-        const vertexShader = \`
-          struct Uni { mvp: mat4x4f }
-          @group(0) @binding(0) var<uniform> uni: Uni;
-          struct VsOut { @builtin(position) pos: vec4f, @location(0) col: vec3f }
-          @vertex fn vs(@location(0) pos: vec3f, @builtin(vertex_index) vi: u32) -> VsOut {
-            let cols = array<vec3f, 6>(vec3f(0.9,0.3,0.3), vec3f(0.3,0.9,0.3), vec3f(0.3,0.4,0.9), vec3f(0.9,0.9,0.3), vec3f(0.3,0.9,0.9), vec3f(0.9,0.3,0.9));
-            return VsOut(uni.mvp * vec4f(pos, 1.0), cols[vi / 6u]);
-          }
-        \`;
-        const fragmentShader = \`
-          struct VsOut { @builtin(position) pos: vec4f, @location(0) col: vec3f }
-          @fragment fn fs(in: VsOut) -> @location(0) vec4f { return vec4f(in.col, 1.0); }
-        \`;
-        const meshId = COS3.graphics.createMesh({
-          vertices: [ -1,-1, 1, 1,-1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, -1,-1, 1, -1,-1,-1, -1, 1,-1, 1, 1,-1, 1, 1,-1, 1,-1,-1, -1,-1,-1 ]
-        });
-        const pipelineId = COS3.graphics.createPipeline({ vertexShader, fragmentShader, bindings: [{ group: 0, binding: 0, type: 'uniform', resource: 'mvp' }] });
-        const mvpId = COS3.graphics.createBuffer({ size: 64, usage: 64 });
-        COS3.interop.registerRenderer('cube-renderer', 'webgpu');
-        function render() {
-          UI.render(UI.Window({ title: 'SDK Cube' },
-            UI.Container({ layout: 'column', gap: 10 },
-              UI.Text({ content: 'Fully sandboxed logic!', size: 16 }),
-              UI.Image('gpu-scene', { renderer: 'cube-renderer', pipeline: pipelineId, mesh: meshId, mvp: mvpId }),
-              UI.Button('Interactions: ' + rotations, { onClick: 'onBtnClick' })
-            )
-          ));
-        }
-        globalThis.onBtnClick = () => { rotations++; render(); };
-        render();
-      `,
-      './src/apps/pyramid.js': `const { UI, COS3 } = globalThis; COS3.interop.registerRenderer('pyramid-viz', 'webgpu'); UI.render(UI.Window({ title: 'Pyramid' }, UI.Image('gpu-scene', { renderer: 'pyramid-viz' })));`,
-      './src/apps/particles.js': `const { UI, COS3 } = globalThis; COS3.interop.registerRenderer('star-field', 'webgpu'); UI.render(UI.Window({ title: 'Stars' }, UI.Image('gpu-scene', { renderer: 'star-field' })));`,
-      './src/apps/plane.js': `const { UI, COS3 } = globalThis; COS3.interop.registerRenderer('grid-viz', 'webgpu'); UI.render(UI.Window({ title: 'Grid' }, UI.Image('gpu-scene', { renderer: 'grid-viz' })));`
-    };
-    return scripts[url] || '';
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+    return await resp.text();
   }
-
-  const systemScenes: any = { 'pyramid-viz': new PyramidScene(), 'grid-viz': new PlaneScene(), 'star-field': new ParticleScene() };
-  for (const s of Object.values(systemScenes) as any) await s.init(ui.gpu.device, ui.gpu.format);
 
   const depthTexMap = new Map<string, GPUTexture>();
 
@@ -219,11 +177,6 @@ export default async function main() {
                img.getLayer()?.batchDraw();
                continue;
              }
-           }
-           const renderer = systemScenes[rendererName];
-           if (renderer) {
-             renderer.render(ui.gpu.device, ui.gpu.device.queue, info.ctx, t);
-             img.getLayer()?.batchDraw();
            }
          }
        }
