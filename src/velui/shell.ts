@@ -26,7 +26,7 @@ export class StatusBar extends Konva.Group {
     super();
 
     // notifications bar
-    this.bg = new VelContainer({ x: (width / 2) - 70, y: 10, w: 200, h: height }, theme, { raised: true });
+    this.bg = new VelContainer({ x: (width / 2) - 70, y: 10, w: 180, h: height }, theme, { raised: true });
     this.bg.cornerRadius(25);
     this.add(this.bg);
 
@@ -38,22 +38,22 @@ export class StatusBar extends Konva.Group {
     this.startBtn.on('click tap', onStartClick);
     this.add(this.startBtn);
 
-    this.notifBtn = new VelButton('x', {  x: (width / 2) - 60, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn = new VelButton('x', {  x: (width / 2) - 40, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
     this.notifBtn.rect.cornerRadius(25);
     this.notifBtn.on('click tap', onStartClick);
     this.add(this.notifBtn);
 
-    this.notifBtn = new VelButton('x', {  x: (width / 2) - 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn = new VelButton('x', {  x: (width / 2) - 10, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
     this.notifBtn.rect.cornerRadius(25);
     this.notifBtn.on('click tap', onStartClick);
     this.add(this.notifBtn);
 
-    this.notifBtn = new VelButton('x', {  x: (width / 2), y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn = new VelButton('x', {  x: (width / 2) + 20, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
     this.notifBtn.rect.cornerRadius(25);
     this.notifBtn.on('click tap', onStartClick);
     this.add(this.notifBtn);
 
-    this.notifBtn = new VelButton('x', {  x: (width / 2) + 30, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
+    this.notifBtn = new VelButton('x', {  x: (width / 2) + 50, y: 14, w: height - 8, h: height - 8 }, { ...theme, accent: lightGray });
     this.notifBtn.rect.cornerRadius(25);
     this.notifBtn.on('click tap', onStartClick);
     this.add(this.notifBtn);
