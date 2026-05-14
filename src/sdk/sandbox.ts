@@ -275,17 +275,17 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     // ---- graphics ----
     const gfx = vm.newObject();
     this._addFn(gfx, "createBuffer", (descH) => {
-      const desc: BufferDescriptor = JSON.parse(vm.getString(descH));
+      const desc = vm.dump(descH) as BufferDescriptor;
       const id = this.host.graphics.createBuffer(desc);
       return vm.newString(id);
     });
     this._addFn(gfx, "createTexture", (descH) => {
-      const desc: TextureDescriptor = JSON.parse(vm.getString(descH));
+      const desc = vm.dump(descH) as TextureDescriptor;
       const id = this.host.graphics.createTexture(desc);
       return vm.newString(id);
     });
     this._addFn(gfx, "createPipeline", (cfgH) => {
-      const cfg: PipelineConfig = JSON.parse(vm.getString(cfgH));
+      const cfg = vm.dump(cfgH) as PipelineConfig;
       const id = this.host.graphics.createPipeline(cfg);
       return vm.newString(id);
     });
@@ -298,12 +298,17 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
       return vm.undefined;
     });
     this._addFn(gfx, "createMesh", (descH) => {
-      const desc: MeshDescriptor = JSON.parse(vm.getString(descH));
-      const id = this.host.graphics.createMesh(desc);
+      const desc = vm.dump(descH) as any;
+      // Handle the case where vertices might be a dumped object/array
+      // For the demo, we'll assume the app might pass a regular array or we'll convert it
+      const vertices = Array.isArray(desc.vertices) ? new Float32Array(desc.vertices) : desc.vertices;
+      const indices = Array.isArray(desc.indices) ? new Uint16Array(desc.indices) : desc.indices;
+      
+      const id = this.host.graphics.createMesh({ ...desc, vertices, indices });
       return vm.newString(id);
     });
     this._addFn(gfx, "createLight", (descH) => {
-      const desc: LightDescriptor = JSON.parse(vm.getString(descH));
+      const desc = vm.dump(descH) as LightDescriptor;
       const id = this.host.graphics.createLight(desc);
       return vm.newString(id);
     });
@@ -313,7 +318,7 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     // ---- audio ----
     const audio = vm.newObject();
     this._addFn(audio, "play", (optsH) => {
-      const opts: AudioPlayOptions = JSON.parse(vm.getString(optsH));
+      const opts = vm.dump(optsH) as AudioPlayOptions;
       const id = this.host.audio.play(opts);
       return vm.newString(id);
     });
@@ -331,7 +336,8 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     // ---- ui ----
     const ui = vm.newObject();
     this._addFn(ui, "render", (nodeH) => {
-      const node: UINode = JSON.parse(vm.getString(nodeH));
+      // Use dump for the UI tree as well
+      const node = vm.dump(nodeH) as UINode;
       this.host.ui.renderUITree(this.appId, node);
       return vm.undefined;
     });
@@ -343,11 +349,25 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     this._addFn(interop, "listRegistry", () =>
       vm.newString(JSON.stringify(this.registry.toSnapshot()))
     );
+    this._addFn(interop, "registerRenderer", (nameH, backendH) => {
+      const name = vm.getString(nameH);
+      const backend = vm.getString(backendH);
+      this.registry.registerRenderer(this.appId, name, backend as any, () => {}); 
+      return vm.undefined;
+    });
+    this._addFn(interop, "registerSharedFunction", (nameH) => {
+      const name = vm.getString(nameH);
+      this.registry.registerSharedFunction(this.appId, name, async (...args: any[]) => {
+        const result = this.callExport(name, ...args);
+        return result.ok ? result.value : Promise.reject(result.error);
+      });
+      return vm.undefined;
+    });
     this._addFn(interop, "callSharedFunction", (appIdH, nameH, argsH) => {
-      // Fire-and-forget from sync context; result surfaces via next evalCode or a callback
+      // Use dump for args
       const targetApp = vm.getString(appIdH);
       const fnName = vm.getString(nameH);
-      const args: unknown[] = JSON.parse(vm.getString(argsH));
+      const args = vm.dump(argsH) as any[];
       this.registry
         .callSharedFunction(targetApp, fnName, ...args)
         .then((result) => {

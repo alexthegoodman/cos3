@@ -169,6 +169,11 @@ export class UIBridge {
       
       case 'button':
         const btn = new VelButton((props.label as string) || 'Button', cur.next(40), theme);
+        if (props.onClick) {
+          btn.on('click tap', () => {
+            this.shell.onUIEvent(appId, props.onClick as string, {});
+          });
+        }
         parent.add(btn);
         break;
 
@@ -276,6 +281,10 @@ export class Shell {
       this.appManager.terminateApp(appId);
     }
     this.applyLayout();
+  }
+
+  onUIEvent(appId: AppId, handlerName: string, data: any) {
+    this.appManager?.callExport(appId, handlerName, data);
   }
 
   setAppManager(manager: AppManager, launchCallback: (appId: AppId) => void) {
