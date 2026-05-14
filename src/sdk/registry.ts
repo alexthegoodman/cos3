@@ -37,9 +37,9 @@ export interface DataConstructEntry<T = unknown> {
 // ------ Renderers ------
 
 export type RenderFunction = (
-  ctx: GPURenderPassEncoder | CanvasRenderingContext2D,
-  params: Record<string, unknown>
-) => void;
+  target: any,
+  params: Record<string, any>
+) => void | Promise<void>;
 
 export interface RendererEntry {
   meta: RendererMeta;

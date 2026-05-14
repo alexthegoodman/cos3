@@ -346,10 +346,47 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     this._addFn(interop, "listRegistry", (_thisH) =>
       vm.newString(JSON.stringify(this.registry.toSnapshot()))
     );
-    this._addFn(interop, "registerRenderer", (_thisH, nameH, backendH) => {
+    this._addFn(interop, "registerRenderer", (_thisH, nameH, handlerNameH, backendH) => {
       const name = vm.getString(nameH);
-      const backend = vm.getString(backendH);
-      this.registry.registerRenderer(this.appId, name, backend as any, () => {}); 
+      const handlerName = vm.getString(handlerNameH);
+      const backend = vm.getString(backendH || vm.newString('webgpu'));
+
+      this.registry.registerRenderer(this.appId, name, backend, async (target, params) => {
+        // target is the real GPURenderPassEncoder or Canvas2D
+        // params includes 'time', 'width', 'height'
+        
+        // 1. Create a "Pass" handle in the sandbox
+        const pass = vm.newObject();
+        const commands: any[] = [];
+
+        // In a real impl, we'd record these and play them back on the host thread.
+        // To keep it simple for the demo, we'll just buffer them in this call.
+        this._addFn(pass, "setPipeline", (_thisH, idH) => {
+          commands.push({ type: 'setPipeline', id: vm.getString(idH) });
+          return vm.undefined;
+        });
+        this._addFn(pass, "setMesh", (_thisH, idH) => {
+          commands.push({ type: 'setMesh', id: vm.getString(idH) });
+          return vm.undefined;
+        });
+        this._addFn(pass, "setBuffer", (_thisH, roleH, idH) => {
+          commands.push({ type: 'setBuffer', role: vm.getString(roleH), id: vm.getString(idH) });
+          return vm.undefined;
+        });
+        this._addFn(pass, "draw", (_thisH) => {
+          commands.push({ type: 'draw' });
+          return vm.undefined;
+        });
+
+        // 2. Call the guest handler
+        const result = this.callExport(handlerName, pass, params);
+        pass.dispose();
+
+        if (result.ok) {
+           // 3. Return the recorded commands to the host
+           return commands as any;
+        }
+      }); 
       return vm.undefined;
     });
     this._addFn(interop, "registerSharedFunction", (_thisH, nameH) => {

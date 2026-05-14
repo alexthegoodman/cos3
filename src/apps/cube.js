@@ -1,4 +1,4 @@
-// Cube Viewer App — Fully SDK-Driven
+// Cube Viewer App — Function-Based Renderer
 const { UI, COS3 } = globalThis;
 
 const vertexShader = `
@@ -16,7 +16,7 @@ const fragmentShader = `
   @fragment fn fs(in: VsOut) -> @location(0) vec4f { return vec4f(in.col, 1.0); }
 `;
 
-// Initialize Resources using plain arrays for reliable marshaling
+// 1. Initialize Resources
 const meshId = COS3.graphics.createMesh({
   vertices: [
     -1,-1, 1,  1,-1, 1,  1, 1, 1,  1, 1, 1, -1, 1, 1, -1,-1, 1,
@@ -29,23 +29,31 @@ const meshId = COS3.graphics.createMesh({
 });
 
 const pipelineId = COS3.graphics.createPipeline({
-  vertexShader,
-  fragmentShader,
+  vertexShader, fragmentShader,
   bindings: [{ group: 0, binding: 0, type: 'uniform', resource: 'mvp' }]
 });
 
 const mvpId = COS3.graphics.createBuffer({ size: 64, usage: 64 });
 
-COS3.interop.registerRenderer('cube-renderer', 'webgpu');
+// 2. Register Shared Renderer Function
+COS3.interop.registerRenderer('cube-renderer', 'onRender', 'webgpu');
+
+// This function is called by the host every frame
+globalThis.onRender = (pass, params) => {
+  pass.setPipeline(pipelineId);
+  pass.setMesh(meshId);
+  pass.setBuffer('mvp', mvpId);
+  pass.draw();
+};
 
 let rotations = 0;
 
-function render() {
+function renderUI() {
   UI.render(
-    UI.Window({ title: 'SDK Cube', width: 400, height: 480 },
+    UI.Window({ title: 'SDK Cube' },
       UI.Container({ layout: 'column', gap: 10 },
-        UI.Text({ content: 'Shaders defined in-app!', size: 16 }),
-        UI.Image('gpu-scene', { renderer: 'cube-renderer', pipeline: pipelineId, mesh: meshId, mvp: mvpId }),
+        UI.Text({ content: 'Dynamic Renderer Function!', size: 16 }),
+        UI.Image('gpu-scene', { renderer: 'cube.app::cube-renderer' }),
         UI.Button('Interactions: ' + rotations, { onClick: 'onBtnClick' })
       )
     )
@@ -54,7 +62,7 @@ function render() {
 
 globalThis.onBtnClick = () => {
   rotations++;
-  render();
+  renderUI();
 };
 
-render();
+renderUI();

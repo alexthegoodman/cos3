@@ -164,18 +164,21 @@ export default async function main() {
          const info = (img as any)._gpuBridge;
          const props = img.getAttrs();
          const rendererName = props.renderer; 
+         
          if (info && rendererName) {
            if (info.canvas.width !== Math.floor(img.width()) || info.canvas.height !== Math.floor(img.height())) {
              ui.gpu.resizeBridgeCanvas(info, img.width(), img.height());
            }
-           if (props.pipeline && props.mesh) {
-             const pipeline = gpuResources.pipelines.get(props.pipeline);
-             const mesh = gpuResources.meshes.get(props.mesh);
-             const mvpBuf = gpuResources.buffers.get(props.mvp);
-             if (pipeline && mesh) {
-               renderSDKScene(ui.gpu.device, ui.gpu.device.queue, info.ctx, pipeline, mesh, mvpBuf, t, depthTexMap);
-               img.getLayer()?.batchDraw();
-               continue;
+
+           const [appId, name] = rendererName.split('::');
+           const renderer = globalRegistry.getRenderer(appId, name);
+           if (renderer) {
+             const params = { time: t, width: info.canvas.width, height: info.canvas.height, ...props };
+             const commands = await renderer.render(info.ctx, params) as any;
+             
+             if (Array.isArray(commands)) {
+                executeCommands(ui.gpu.device, ui.gpu.device.queue, info.ctx, commands, t, depthTexMap);
+                img.getLayer()?.batchDraw();
              }
            }
          }
@@ -185,7 +188,7 @@ export default async function main() {
     requestAnimationFrame(frame);
   }
 
-  function renderSDKScene(device: GPUDevice, queue: GPUQueue, target: GPUCanvasContext, pipeline: GPURenderPipeline, mesh: any, mvpBuf: GPUBuffer | undefined, t: number, depthMap: Map<string, GPUTexture>) {
+  function executeCommands(device: GPUDevice, queue: GPUQueue, target: GPUCanvasContext, commands: any[], t: number, depthMap: Map<string, GPUTexture>) {
      const w = target.canvas.width, h = target.canvas.height;
      const depthKey = w + 'x' + h;
      let depthTex = depthMap.get(depthKey);
@@ -194,25 +197,58 @@ export default async function main() {
        depthMap.set(depthKey, depthTex);
      }
 
-     if (mvpBuf) {
-       const mvp = new Float32Array(16);
-       mvp[0]=Math.cos(t); mvp[2]=Math.sin(t); mvp[5]=1; mvp[8]=-Math.sin(t); mvp[10]=Math.cos(t); mvp[15]=1;
-       queue.writeBuffer(mvpBuf, 0, mvp);
-     }
-
      const enc = device.createCommandEncoder();
      const pass = enc.beginRenderPass({
        colorAttachments: [{ view: target.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0.1, g: 0.1, b: 0.15, a: 1 } }],
        depthStencilAttachment: { view: depthTex.createView(), depthLoadOp: 'clear', depthStoreOp: 'store', depthClearValue: 1 }
      });
-     pass.setPipeline(pipeline);
-     pass.setVertexBuffer(0, mesh.v);
-     if (mvpBuf) {
-       const bg = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: mvpBuf } }] });
-       pass.setBindGroup(0, bg);
+
+     for (const cmd of commands) {
+       switch (cmd.type) {
+         case 'setPipeline':
+           const pipe = gpuResources.pipelines.get(cmd.id);
+           if (pipe) pass.setPipeline(pipe);
+           break;
+         case 'setMesh':
+           const mesh = gpuResources.meshes.get(cmd.id);
+           if (mesh) {
+             pass.setVertexBuffer(0, mesh.v);
+             if (mesh.i) pass.setIndexBuffer(mesh.i, 'uint16');
+           }
+           break;
+         case 'setBuffer':
+           const buf = gpuResources.buffers.get(cmd.id);
+           if (buf && cmd.role === 'mvp') {
+             // Mock MVP update
+             const mvp = new Float32Array(16);
+             mvp[0]=Math.cos(t); mvp[2]=Math.sin(t); mvp[5]=1; mvp[8]=-Math.sin(t); mvp[10]=Math.cos(t); mvp[15]=1;
+             queue.writeBuffer(buf, 0, mvp);
+             
+             // Auto-bind for the demo
+             // In a real system, the app would specify the group/binding
+             const bgl = (pass as any)._currentPipeline?.getBindGroupLayout(0);
+             if (bgl) {
+                const bg = device.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: buf } }] });
+                pass.setBindGroup(0, bg);
+             }
+           }
+           break;
+         case 'draw':
+           // We need to know the vertex count. In a real impl, it's stored with the mesh.
+           // For the demo, we'll assume the last set mesh
+           const currentMesh = commands.filter(c => c.type === 'setMesh').pop();
+           const meshData = gpuResources.meshes.get(currentMesh?.id);
+           if (meshData) {
+             if (meshData.i) pass.drawIndexed(meshData.count);
+             else pass.draw(meshData.count);
+           }
+           break;
+       }
+       
+       // Track state for auto-bind logic
+       if (cmd.type === 'setPipeline') (pass as any)._currentPipeline = gpuResources.pipelines.get(cmd.id);
      }
-     if (mesh.i) { pass.setIndexBuffer(mesh.i, 'uint16'); pass.drawIndexed(mesh.count); }
-     else { pass.draw(mesh.count); }
+
      pass.end();
      queue.submit([enc.finish()]);
   }
