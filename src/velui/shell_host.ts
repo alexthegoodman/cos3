@@ -117,6 +117,7 @@ export default async function main() {
 
   // 2. Script loading from /src/apps/
   const APP_URLS: Record<string, string> = {
+    'calculator.app': './src/apps/calculator.js',
     'cube.app': './src/apps/cube.js',
     'pyramid.app': './src/apps/pyramid.js',
     'particles.app': './src/apps/particles.js',
@@ -124,6 +125,7 @@ export default async function main() {
   };
 
   const apps = [
+    { id: 'calculator.app', name: 'Calculator' },
     { id: 'cube.app', name: 'SDK Cube' },
     { id: 'pyramid.app', name: 'Pyramid' },
     { id: 'plane.app', name: 'Grid' },

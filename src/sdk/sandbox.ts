@@ -35,6 +35,7 @@ import type {
 } from "./types";
 import type { InteropRegistry } from "./registry";
 import { generateUUID, EventEmitter } from "./index";
+import * as math from "mathjs";
 
 // ---- Host-provided capabilities injected at construction ----
 
@@ -357,6 +358,19 @@ export class AppSandbox extends EventEmitter<SandboxEvents> {
     });
     vm.setProp(cos3, "ui", ui);
     ui.dispose();
+
+    // ---- math ----
+    const mathObj = vm.newObject();
+    this._addFn(mathObj, "evaluate", (exprH) => {
+      try {
+        const result = math.evaluate(s(exprH));
+        return vm.newString(String(result));
+      } catch (e) {
+        return vm.newString(`error:${(e as Error).message}`);
+      }
+    });
+    vm.setProp(cos3, "math", mathObj);
+    mathObj.dispose();
 
     // ---- interop ----
     const interop = vm.newObject();

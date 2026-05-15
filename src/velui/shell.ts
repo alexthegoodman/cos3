@@ -7,7 +7,7 @@ import { AppLauncher } from './widget/launcher';
 import { AppManager } from '../sdk/app-manager';
 import { globalRegistry } from '../sdk/registry';
 import type { UINode, AppId } from '../sdk/types';
-import { LayoutCursor } from './layout';
+import { LayoutCursor, GridCursor, HCursor } from './layout';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StatusBar
@@ -104,6 +104,10 @@ export class StatusBar extends Konva.Group {
 // UI Bridge
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface AnyCursor {
+  next(hOrW: number): Rect;
+}
+
 /**
  * Connects App SDK UI calls to Konva widgets.
  */
@@ -152,23 +156,28 @@ export class UIBridge {
 
     if (node.children) {
       for (const child of node.children) {
-        this.renderNode(child, win.contentArea, cur);
+        this.renderNode(appId, child, win.contentArea, cur);
       }
     }
   }
 
-  private renderNode(node: UINode, parent: Konva.Group, cur: LayoutCursor) {
+  private renderNode(appId: AppId, node: UINode, parent: Konva.Group, cur: AnyCursor) {
     const theme = this.shell.ui.theme;
     const props = node.props || {};
 
     switch (node.type) {
-      case 'text':
-        const label = new VelLabel((props.content as string) || '', cur.next(props.size as number || 20), theme);
+      case 'text': {
+        const h = (props.size as number) || 20;
+        const rect = cur.next(h);
+        const label = new VelLabel((props.content as string) || '', rect, theme, props.color as any, h);
+        if (props.align) label.align(props.align as string);
         parent.add(label);
         break;
+      }
       
-      case 'button':
-        const btn = new VelButton((props.label as string) || 'Button', cur.next(40), theme);
+      case 'button': {
+        const h = (props.height as number) || 40;
+        const btn = new VelButton((props.label as string) || 'Button', cur.next(h), theme);
         if (props.onClick) {
           btn.on('click tap', () => {
             this.shell.onUIEvent(appId, props.onClick as string, {});
@@ -176,15 +185,35 @@ export class UIBridge {
         }
         parent.add(btn);
         break;
+      }
 
-      case 'container':
-        // Simplified container
+      case 'container': {
+        const layout = (props.layout as string) || 'column';
+        const gap = (props.gap as number) ?? theme.gap;
+        const padding = (props.padding as number) ?? 0;
+        
+        // Determine container height
+        const height = (props.height as number) || 100; // default for row
+        
+        let containerCur: AnyCursor;
+        const bounds = cur.next(height);
+
+        if (layout === 'grid') {
+          const cols = (props.cols as number) || 4;
+          containerCur = new GridCursor(bounds, cols, padding, gap);
+        } else if (layout === 'row') {
+          containerCur = new HCursor(bounds.x + padding, bounds.y + padding, bounds.h - padding * 2, gap);
+        } else {
+          containerCur = new LayoutCursor(bounds, padding, gap);
+        }
+
         if (node.children) {
           for (const child of node.children) {
-            this.renderNode(child, parent, cur);
+            this.renderNode(appId, child, parent, containerCur);
           }
         }
         break;
+      }
       
       case 'image':
         if (props.src === 'gpu-scene') {
@@ -214,6 +243,7 @@ export class UIBridge {
     return Array.from(this.windows.values());
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shell

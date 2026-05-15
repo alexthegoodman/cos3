@@ -121,6 +121,15 @@ export class AppManager extends EventEmitter<AppManagerEvents> {
     return [...this.sandboxes.keys()];
   }
 
+  /** Call a function exported by a running app's sandbox */
+  callExport(appId: AppId, name: string, ...args: unknown[]): HostCallResult {
+    const sandbox = this.sandboxes.get(appId);
+    if (!sandbox) {
+      return { ok: false, error: `App "${appId}" is not running` };
+    }
+    return sandbox.callExport(name, ...args);
+  }
+
   // ---- Event routing ----
 
   deliverLifecycleTo(
