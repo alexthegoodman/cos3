@@ -6,8 +6,8 @@ let lastAnswer = '';
 
 function renderUI() {
   UI.render(
-    UI.Window({ title: 'Calculator', width: 320, height: 480 },
-      UI.Container({ layout: 'column', padding: 20, gap: 15 },
+    UI.Window({ title: 'Calculator', width: 320, height: 520 },
+      UI.Container({ layout: 'column', padding: 10, gap: 5 },
         // Display Area
         UI.Container({ height: 80, padding: 10 },
           UI.Text({ content: equation, size: 16, color: '#aaa', align: 'right' }),
