@@ -19,6 +19,7 @@ export class StatusBar extends Konva.Group {
   private weatherLabel: VelLabel;
   private startBtn: VelButton;
   private notifBtn: VelButton;
+  private fullscreenBtn: VelButton;
   private layoutDropdown: VelDropdown;
   private timer: any;
 
@@ -64,6 +65,19 @@ export class StatusBar extends Konva.Group {
       onLayoutChange(mode as LayoutMode);
     });
     this.add(this.layoutDropdown);
+
+    // Fullscreen Button
+    this.fullscreenBtn = new VelButton('Fullscreen', { x: 180, y: 10, w: 90, h: height }, { ...theme, accent: lightGray });
+    this.fullscreenBtn.on('click tap', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    });
+    this.add(this.fullscreenBtn);
 
     // time and weather
     this.timeLabel = new VelLabel('', { x: width - 125, y: 15, w: 100, h: height }, { ...theme, fontSize: 20 });
