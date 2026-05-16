@@ -159,6 +159,67 @@ export default async function main() {
   const depthTexMap = new Map<string, GPUTexture>();
   let lastTime = 0;
 
+  // Wallpaper Pipelines
+  const wallpaperShaders: Record<string, string> = {
+    aurora: `
+      @vertex fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
+        var pos = array<vec2f, 3>(vec2f(-1,-1), vec2f(3,-1), vec2f(-1,3));
+        return vec4f(pos[vi], 0, 1);
+      }
+      @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+        let uv = pos.xy / vec2f(2000, 1000);
+        let t = COS3_TIME * 0.2;
+        let color = vec3f(0.05, 0.1, 0.15) + 0.1 * vec3f(
+          sin(uv.x * 5.0 + t) * 0.5 + 0.5,
+          sin(uv.y * 3.0 - t * 1.5) * 0.5 + 0.5,
+          sin((uv.x + uv.y) * 2.0 + t) * 0.5 + 0.5
+        );
+        return vec4f(color * 0.6, 1.0);
+      }
+    `,
+    nebula: `
+      @vertex fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
+        var pos = array<vec2f, 3>(vec2f(-1,-1), vec2f(3,-1), vec2f(-1,3));
+        return vec4f(pos[vi], 0, 1);
+      }
+      @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+        let uv = pos.xy / vec2f(2000, 1000);
+        let t = COS3_TIME * 0.1;
+        let color = vec3f(0.1, 0.05, 0.15) + 0.12 * vec3f(
+          cos(uv.x * 2.0 - t) * 0.5 + 0.5,
+          sin(uv.y * 4.0 + t * 0.8) * 0.5 + 0.5,
+          cos((uv.x - uv.y) * 3.0 + t * 1.2) * 0.5 + 0.5
+        );
+        return vec4f(color * 0.5, 1.0);
+      }
+    `,
+    cosmic: `
+      @vertex fn vs(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4f {
+        var pos = array<vec2f, 3>(vec2f(-1,-1), vec2f(3,-1), vec2f(-1,3));
+        return vec4f(pos[vi], 0, 1);
+      }
+      @fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+        let uv = pos.xy / vec2f(2000, 1000);
+        let t = COS3_TIME * 0.05;
+        let s = sin(uv.x * 10.0 + t) * cos(uv.y * 10.0 - t);
+        let color = vec3f(0.02, 0.02, 0.05) + 0.05 * vec3f(s + 0.5);
+        return vec4f(color, 1.0);
+      }
+    `
+  };
+
+  const wallPipelines = new Map<string, GPURenderPipeline>();
+  for (const [name, code] of Object.entries(wallpaperShaders)) {
+    const mod = ui.gpu.device.createShaderModule({ code: code.replace('COS3_TIME', 't') });
+    const pipe = ui.gpu.device.createRenderPipeline({
+      layout: 'auto',
+      vertex: { module: mod, entryPoint: 'vs' },
+      fragment: { module: mod, entryPoint: 'fs', targets: [{ format: ui.gpu.format }] },
+      primitive: { topology: 'triangle-list' }
+    });
+    wallPipelines.set(name, pipe);
+  }
+
   async function frame(time: number) {
     const dt = (time - (lastTime || time)) / 1000;
     lastTime = time;
@@ -166,6 +227,39 @@ export default async function main() {
     const t = time / 1000;
     
     shell.update(dt);
+
+    // Render Wallpaper Shader if active
+    const wallState = shell.getWallpaperState();
+    if (wallState.type !== 'static' && wallState.bridge) {
+       const pipe = wallPipelines.get(wallState.type);
+       if (pipe) {
+         // Re-compile with time if needed, or use a uniform. 
+         // For simplicity, we'll just re-create a small shader module for now 
+         // OR better: use a uniform for time.
+         // Let's use a uniform for time to be efficient.
+       }
+       
+       // Simple version: Re-compile shader with time constant for this demo 
+       // (Not efficient but easy to plug into the current triangle-list setup)
+       const mod = ui.gpu.device.createShaderModule({ 
+         code: wallpaperShaders[wallState.type as keyof typeof wallpaperShaders].replace(/COS3_TIME/g, t.toFixed(4)) 
+       });
+       const pipe2 = ui.gpu.device.createRenderPipeline({
+         layout: 'auto',
+         vertex: { module: mod, entryPoint: 'vs' },
+         fragment: { module: mod, entryPoint: 'fs', targets: [{ format: ui.gpu.format }] },
+         primitive: { topology: 'triangle-list' }
+       });
+
+       const enc = ui.gpu.device.createCommandEncoder();
+       const pass = enc.beginRenderPass({
+         colorAttachments: [{ view: wallState.bridge.ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }]
+       });
+       pass.setPipeline(pipe2);
+       pass.draw(3);
+       pass.end();
+       ui.gpu.device.queue.submit([enc.finish()]);
+    }
 
     for (const win of bridge.getWindows()) {
        const gpuImages = win.find('.gpu-scene-image');

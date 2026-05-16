@@ -21,9 +21,10 @@ export class StatusBar extends Konva.Group {
   private notifBtn: VelButton;
   private fullscreenBtn: VelButton;
   private layoutDropdown: VelDropdown;
+  private wallpaperDropdown: VelDropdown;
   private timer: any;
 
-  constructor(width: number, height: number, theme: Theme, onStartClick: () => void, onLayoutChange: (mode: LayoutMode) => void) {
+  constructor(width: number, height: number, theme: Theme, onStartClick: () => void, onLayoutChange: (mode: LayoutMode) => void, onWallpaperChange: (type: string) => void) {
     super();
 
     // notifications bar
@@ -78,6 +79,13 @@ export class StatusBar extends Konva.Group {
       }
     });
     this.add(this.fullscreenBtn);
+
+    // Wallpaper Dropdown
+    this.wallpaperDropdown = new VelDropdown('Wall: Static', ['Static', 'Aurora', 'Nebula', 'Cosmic'], { x: 280, y: 10, w: 100, h: height }, { ...theme, accent: lightGray }, (type) => {
+      this.wallpaperDropdown.setLabel(`Wall: ${type}`);
+      onWallpaperChange(type.toLowerCase());
+    });
+    this.add(this.wallpaperDropdown);
 
     // time and weather
     this.timeLabel = new VelLabel('', { x: width - 125, y: 15, w: 100, h: height }, { ...theme, fontSize: 20 });
@@ -272,10 +280,12 @@ export class Shell {
   
   private statusBar: StatusBar;
   private launcher?: AppLauncher;
-  private wallpaper?: Konva.Rect;
+  private wallpaper?: Konva.Rect | Konva.Image;
   private bridge: UIBridge;
   private layoutMode: LayoutMode = LayoutMode.FREEFORM;
   private appManager?: AppManager;
+  private currentWallpaperType: string = 'static';
+  private shaderBridge?: { canvas: OffscreenCanvas, ctx: GPUCanvasContext };
 
   constructor(ui: Ui) {
     this.ui = ui;
@@ -298,6 +308,8 @@ export class Shell {
       this.launcher?.toggle();
     }, (mode) => {
       this.setLayoutMode(mode);
+    }, (type) => {
+      this.setWallpaperType(type);
     });
     this.statusLayer.add(this.statusBar);
 
@@ -361,6 +373,35 @@ export class Shell {
     this.applyLayout();
   }
 
+  setWallpaperType(type: string) {
+    this.currentWallpaperType = type;
+    if (type === 'static') {
+      this.setWallpaper(Color.toCss(this.ui.theme.bg));
+    } else {
+      this.setupShaderWallpaper();
+    }
+  }
+
+  private setupShaderWallpaper() {
+    if (this.wallpaper) {
+      this.wallpaper.destroy();
+    }
+    
+    if (!this.shaderBridge) {
+      this.shaderBridge = this.ui.gpu.createBridgeCanvas(this.ui.width, this.ui.height);
+    }
+
+    const img = new Konva.Image({
+      x: 0, y: 0, 
+      width: this.ui.width, 
+      height: this.ui.height,
+      image: this.shaderBridge.canvas as any,
+    });
+    this.wallpaper = img;
+    this.wallpaperLayer.add(img);
+    this.wallpaperLayer.batchDraw();
+  }
+
   applyLayout() {
     const windows = (this.windowLayer.getChildren().filter(c => c.name() === 'vel-window') as VelWindow[])
       .filter(w => !w.isMinimised);
@@ -416,6 +457,7 @@ export class Shell {
     if (colorOrUrl.startsWith('http') || colorOrUrl.startsWith('data:') || colorOrUrl.endsWith('.jpg') || colorOrUrl.endsWith('.png')) {
       Konva.Image.fromURL(colorOrUrl, (img) => {
         img.setAttrs({ width: this.ui.width, height: this.ui.height });
+        this.wallpaper = img;
         this.wallpaperLayer.add(img);
         this.wallpaperLayer.batchDraw();
       });
@@ -435,6 +477,9 @@ export class Shell {
     if (this.wallpaper) {
       this.wallpaper.width(w);
       this.wallpaper.height(h);
+    }
+    if (this.shaderBridge) {
+      this.ui.gpu.resizeBridgeCanvas(this.shaderBridge, w, h);
     }
     this.statusBar.setBarSize(w, 32);
     this.applyLayout();
@@ -458,8 +503,15 @@ export class Shell {
       this.overlayLayer.batchDraw();
     }
 
+    if (this.currentWallpaperType !== 'static') {
+      changed = true; // Always redraw if shader is running
+    }
+
     if (changed) {
       this.windowLayer.batchDraw();
+      if (this.currentWallpaperType !== 'static') {
+        this.wallpaperLayer.batchDraw();
+      }
     }
   }
 
@@ -472,5 +524,12 @@ export class Shell {
 
   getUIBridge() {
     return this.bridge;
+  }
+
+  getWallpaperState() {
+    return {
+      type: this.currentWallpaperType,
+      bridge: this.shaderBridge
+    };
   }
 }
